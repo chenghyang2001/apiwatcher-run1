@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "npx",
+      "args": ["puppeteer-mcp-server"]
+    }
+  }
+}

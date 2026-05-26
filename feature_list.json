@@ -1,0 +1,484 @@
+[
+  {
+    "category": "functional",
+    "description": "FastAPI service health check endpoint returns 200 OK",
+    "steps": [
+      "Step 1: Start FastAPI service on port 8000",
+      "Step 2: Navigate to http://localhost:8000/health using puppeteer",
+      "Step 3: Verify response status is 200 OK",
+      "Step 4: Verify response contains health status indicator"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Create new endpoint via REST API POST /endpoints",
+    "steps": [
+      "Step 1: Navigate to http://localhost:8000/docs using puppeteer",
+      "Step 2: Use puppeteer_evaluate to make fetch() POST to /endpoints with test endpoint data",
+      "Step 3: Verify response status is 201 Created",
+      "Step 4: Verify response contains endpoint id and all submitted fields",
+      "Step 5: Query database to confirm endpoint was persisted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Retrieve all endpoints via GET /endpoints",
+    "steps": [
+      "Step 1: Create 3 test endpoints via POST /endpoints",
+      "Step 2: Use puppeteer_evaluate to make fetch() GET to /endpoints",
+      "Step 3: Verify response is array with 3 endpoints",
+      "Step 4: Verify each endpoint has required fields: id, name, url, method, environment"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Update endpoint configuration via PUT /endpoints/:id",
+    "steps": [
+      "Step 1: Create test endpoint with check_interval=300",
+      "Step 2: Use puppeteer_evaluate to PUT /endpoints/:id with check_interval=600",
+      "Step 3: Verify response status is 200 OK",
+      "Step 4: GET /endpoints/:id and verify check_interval updated to 600"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Delete endpoint via DELETE /endpoints/:id",
+    "steps": [
+      "Step 1: Create test endpoint and record its id",
+      "Step 2: Use puppeteer_evaluate to DELETE /endpoints/:id",
+      "Step 3: Verify response status is 204 No Content or 200 OK",
+      "Step 4: GET /endpoints/:id and verify 404 Not Found"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Manual check trigger via POST /endpoints/:id/check",
+    "steps": [
+      "Step 1: Create endpoint pointing to known good URL (e.g., https://httpbin.org/status/200)",
+      "Step 2: Use puppeteer_evaluate to POST /endpoints/:id/check",
+      "Step 3: Verify response contains check result with passed=true",
+      "Step 4: Query checks table and verify new check row was inserted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Toggle endpoint enable/disable via PUT /endpoints/:id/toggle",
+    "steps": [
+      "Step 1: Create enabled endpoint (enabled=true)",
+      "Step 2: Use puppeteer_evaluate to PUT /endpoints/:id/toggle",
+      "Step 3: Verify endpoint.enabled is now false",
+      "Step 4: Toggle again and verify enabled=true"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scheduled health check executes at configured interval and saves result to database",
+    "steps": [
+      "Step 1: Create endpoint with check_interval=60 seconds pointing to https://httpbin.org/status/200",
+      "Step 2: Start APScheduler and wait 65 seconds",
+      "Step 3: Query checks table for endpoint_id",
+      "Step 4: Verify at least 1 check row exists with passed=true, status_code=200, response_time>0"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Failed check recorded when endpoint returns non-200 status",
+    "steps": [
+      "Step 1: Create endpoint pointing to https://httpbin.org/status/500",
+      "Step 2: Trigger manual check via POST /endpoints/:id/check",
+      "Step 3: Verify check result has passed=false",
+      "Step 4: Verify error_message mentions status code 500"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Check timeout recorded when endpoint exceeds timeout_ms",
+    "steps": [
+      "Step 1: Create endpoint with timeout_ms=100 pointing to https://httpbin.org/delay/5",
+      "Step 2: Trigger manual check",
+      "Step 3: Verify check result has passed=false",
+      "Step 4: Verify error_message contains 'timeout' or 'TimeoutError'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Incident opened after 3 consecutive check failures",
+    "steps": [
+      "Step 1: Create endpoint pointing to failing URL (https://httpbin.org/status/503)",
+      "Step 2: Trigger 3 manual checks in sequence",
+      "Step 3: Query incidents table for endpoint_id",
+      "Step 4: Verify 1 incident exists with started_at set, resolved_at=null",
+      "Step 5: Verify incident.failure_count >= 3"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Incident auto-closed after 2 consecutive passing checks",
+    "steps": [
+      "Step 1: Create endpoint, trigger 3 failures to open incident",
+      "Step 2: Update endpoint URL to passing endpoint (https://httpbin.org/status/200)",
+      "Step 3: Trigger 2 manual passing checks",
+      "Step 4: Query incidents table and verify incident.resolved_at is now set",
+      "Step 5: Verify duration_mins is calculated correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Claude AI incident report generation on incident open",
+    "steps": [
+      "Step 1: Set ANTHROPIC_API_KEY environment variable or use /tmp/api-key",
+      "Step 2: Create endpoint and trigger incident (3 failures)",
+      "Step 3: Wait up to 15 seconds for async Claude report generation",
+      "Step 4: Query incidents table and verify claude_report field is populated",
+      "Step 5: Verify report contains plain-English summary and root causes"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Manual incident reanalysis via POST /incidents/:id/reanalyze",
+    "steps": [
+      "Step 1: Open incident with Claude report",
+      "Step 2: Clear claude_report field in database",
+      "Step 3: Use puppeteer_evaluate to POST /incidents/:id/reanalyze",
+      "Step 4: Wait for Claude API response",
+      "Step 5: Verify claude_report is repopulated with fresh analysis"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "SLA uptime calculation for 24h/7d/30d windows",
+    "steps": [
+      "Step 1: Create endpoint and insert 100 check rows (80 passed, 20 failed) over 24h",
+      "Step 2: Use puppeteer_evaluate to GET /sla/:endpoint_id",
+      "Step 3: Verify uptime_24h = 80.0%",
+      "Step 4: Verify SLA target comparison (e.g., below 99.9% target)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "SLA CSV export via GET /sla/:endpoint_id/export",
+    "steps": [
+      "Step 1: Create endpoint with historical check data",
+      "Step 2: Use puppeteer_evaluate to GET /sla/:endpoint_id/export",
+      "Step 3: Verify response Content-Type is text/csv",
+      "Step 4: Verify CSV contains columns: date, uptime_24h, uptime_7d, uptime_30d"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "YAML endpoint export via GET /endpoints/export",
+    "steps": [
+      "Step 1: Create 3 test endpoints with different configurations",
+      "Step 2: Use puppeteer_evaluate to GET /endpoints/export",
+      "Step 3: Verify response is valid YAML format",
+      "Step 4: Verify YAML contains all 3 endpoints with name, url, method, environment fields"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "YAML endpoint import via POST /endpoints/import",
+    "steps": [
+      "Step 1: Create YAML file with 2 endpoint definitions",
+      "Step 2: Use puppeteer_evaluate to POST /endpoints/import with YAML content",
+      "Step 3: Verify response indicates 2 endpoints imported",
+      "Step 4: GET /endpoints and verify the 2 new endpoints exist in database"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Email alert sent on incident open",
+    "steps": [
+      "Step 1: Configure alert_config for endpoint with channel=email, on_incident=true",
+      "Step 2: Trigger incident (3 consecutive failures)",
+      "Step 3: Verify alerter.send_email() was called with incident details",
+      "Step 4: Check alert log table for email send record with timestamp"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slack webhook alert sent on incident open",
+    "steps": [
+      "Step 1: Configure alert_config with channel=slack, target=webhook_url",
+      "Step 2: Trigger incident",
+      "Step 3: Verify httpx POST to Slack webhook was made",
+      "Step 4: Verify alert log contains Slack send record with message preview"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Desktop notification sent on incident open",
+    "steps": [
+      "Step 1: Configure alert_config with channel=desktop",
+      "Step 2: Trigger incident",
+      "Step 3: Verify plyer.notification.notify() was called",
+      "Step 4: Verify alert log contains desktop notification record"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Alert cooldown prevents duplicate alerts within 15 minutes",
+    "steps": [
+      "Step 1: Configure alert with cooldown_mins=15",
+      "Step 2: Trigger incident and verify first alert sent (last_sent_at recorded)",
+      "Step 3: Trigger second incident for same endpoint within 10 minutes",
+      "Step 4: Verify second alert is NOT sent",
+      "Step 5: Wait 15+ minutes and trigger third incident, verify alert IS sent"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Incident acknowledgment via PUT /incidents/:id/acknowledge",
+    "steps": [
+      "Step 1: Create incident",
+      "Step 2: Use puppeteer_evaluate to PUT /incidents/:id/acknowledge",
+      "Step 3: Verify incident.acknowledged = true in database",
+      "Step 4: Verify response confirms acknowledgment timestamp"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Streamlit dashboard displays endpoint status grid on http://localhost:8501",
+    "steps": [
+      "Step 1: Create 6 endpoints (2 dev, 2 staging, 2 production)",
+      "Step 2: Navigate to http://localhost:8501 using puppeteer_navigate",
+      "Step 3: Take screenshot with puppeteer_screenshot",
+      "Step 4: Verify page shows environment tabs: All, Dev, Staging, Production",
+      "Step 5: Verify status cards are visible for all 6 endpoints",
+      "Step 6: Verify summary metrics row shows total/UP/degraded/down counts"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Streamlit environment tab filtering works correctly",
+    "steps": [
+      "Step 1: Create 2 dev endpoints and 2 production endpoints",
+      "Step 2: Navigate to Streamlit dashboard",
+      "Step 3: Click 'Dev' tab using puppeteer_click",
+      "Step 4: Verify only 2 dev endpoints are displayed in grid",
+      "Step 5: Click 'Production' tab",
+      "Step 6: Verify only 2 production endpoints are displayed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Streamlit response time chart displays 24h trend with Plotly",
+    "steps": [
+      "Step 1: Create endpoint with 50 check results over last 24h",
+      "Step 2: Navigate to Streamlit dashboard",
+      "Step 3: Use puppeteer_screenshot to capture chart area",
+      "Step 4: Verify Plotly line chart is rendered (check for plotly class elements)",
+      "Step 5: Verify red dashed threshold line is visible at configured max response time"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Streamlit incident log panel shows open and recent incidents",
+    "steps": [
+      "Step 1: Create 2 open incidents and 3 resolved incidents",
+      "Step 2: Navigate to Streamlit dashboard",
+      "Step 3: Verify incident log panel is visible on right side",
+      "Step 4: Verify 2 open incidents are displayed with severity badges",
+      "Step 5: Verify last 5 resolved incidents are shown",
+      "Step 6: Click 'View Claude Report' expander and verify AI report text is visible"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Streamlit endpoint detail sidebar shows SLA metrics and check history",
+    "steps": [
+      "Step 1: Create endpoint with check history",
+      "Step 2: Navigate to Streamlit dashboard",
+      "Step 3: Click endpoint card to open detail sidebar using puppeteer_click",
+      "Step 4: Verify SLA metrics section displays 24h/7d/30d uptime percentages",
+      "Step 5: Verify check history table is rendered with pagination",
+      "Step 6: Verify alert configuration form is visible with channel/target fields"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Streamlit bulk check now button triggers immediate checks for all endpoints in environment",
+    "steps": [
+      "Step 1: Create 3 endpoints in 'staging' environment",
+      "Step 2: Navigate to Streamlit dashboard and select 'Staging' tab",
+      "Step 3: Click 'Bulk Check Now' button using puppeteer_click",
+      "Step 4: Wait 5 seconds",
+      "Step 5: Query checks table and verify 3 new check rows were created for staging endpoints",
+      "Step 6: Verify all checks have recent timestamps (within last 10 seconds)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Comprehensive end-to-end workflow: add endpoint, detect failure, generate Claude report, send alerts, resolve incident",
+    "steps": [
+      "Step 1: Navigate to Streamlit dashboard at http://localhost:8501",
+      "Step 2: Add new endpoint via UI form (or REST API): name='Test API', url='https://httpbin.org/status/503', method='GET'",
+      "Step 3: Configure alert settings: email=test@example.com, on_incident=true",
+      "Step 4: Trigger 3 manual checks to force failure sequence",
+      "Step 5: Verify incident is opened in database with severity and started_at",
+      "Step 6: Wait for Claude AI report generation (up to 15 seconds)",
+      "Step 7: Verify email alert was sent and recorded in alert log",
+      "Step 8: Check incident log panel in Streamlit UI shows new incident with severity badge",
+      "Step 9: Click 'View Claude Report' and verify AI analysis is displayed",
+      "Step 10: Update endpoint URL to https://httpbin.org/status/200",
+      "Step 11: Trigger 2 passing checks",
+      "Step 12: Verify incident is auto-closed with resolved_at and duration_mins calculated",
+      "Step 13: Verify resolved alert was sent",
+      "Step 14: Verify incident moves from 'Open' to 'Resolved' section in Streamlit UI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Status card uses correct color-coding: green border for UP, yellow for degraded, red for down",
+    "steps": [
+      "Step 1: Create 3 endpoints: one passing (UP), one degraded (slow response), one failing (DOWN)",
+      "Step 2: Navigate to Streamlit dashboard",
+      "Step 3: Take screenshot with puppeteer_screenshot",
+      "Step 4: Verify passing endpoint card has green (#22C55E) border or background tint",
+      "Step 5: Verify degraded endpoint card has amber (#F59E0B) styling",
+      "Step 6: Verify failing endpoint card has red (#EF4444) styling"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Severity badges display correct colors: blue for LOW, orange for MEDIUM, red for HIGH",
+    "steps": [
+      "Step 1: Create 3 incidents with different severities (LOW, MEDIUM, HIGH)",
+      "Step 2: Navigate to Streamlit dashboard incident log panel",
+      "Step 3: Take screenshot of incident cards",
+      "Step 4: Verify LOW severity badge is blue (#3B82F6)",
+      "Step 5: Verify MEDIUM severity badge is orange (#F97316)",
+      "Step 6: Verify HIGH severity badge is red (#EF4444)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Response time chart displays red dashed threshold line correctly",
+    "steps": [
+      "Step 1: Create endpoint with max response time threshold of 1500ms",
+      "Step 2: Add check results with response times ranging 500-2500ms",
+      "Step 3: Navigate to Streamlit dashboard",
+      "Step 4: Take screenshot of response time chart",
+      "Step 5: Verify red dashed horizontal line appears at 1500ms mark on Y-axis",
+      "Step 6: Verify line color is #EF4444 and style is dashed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Streamlit dashboard auto-refreshes every 60 seconds without user interaction",
+    "steps": [
+      "Step 1: Navigate to Streamlit dashboard",
+      "Step 2: Add new endpoint via REST API (not through UI)",
+      "Step 3: Wait 65 seconds without interacting with browser",
+      "Step 4: Verify new endpoint appears in dashboard grid (auto-refresh occurred)",
+      "Step 5: Verify page did not do full reload (check browser console for st.rerun)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Endpoint detail sidebar displays st.metric format for SLA uptime values",
+    "steps": [
+      "Step 1: Create endpoint with SLA data",
+      "Step 2: Navigate to Streamlit dashboard and open endpoint detail sidebar",
+      "Step 3: Take screenshot of SLA metrics section",
+      "Step 4: Verify uptime percentages are displayed in large bold font (st.metric style)",
+      "Step 5: Verify labels '24h Uptime', '7d Uptime', '30d Uptime' are shown in small font above values"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Keyword validation in response body works correctly",
+    "steps": [
+      "Step 1: Create endpoint with keyword_check='success' pointing to https://httpbin.org/json",
+      "Step 2: Trigger manual check",
+      "Step 3: Verify check passes if response body contains 'success'",
+      "Step 4: Update endpoint to keyword_check='nonexistent_keyword'",
+      "Step 5: Trigger check and verify it fails with error_message mentioning missing keyword"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Concurrent async checks for 10+ endpoints execute without blocking",
+    "steps": [
+      "Step 1: Create 15 endpoints with check_interval=60 seconds",
+      "Step 2: Start APScheduler and wait for first check cycle",
+      "Step 3: Verify all 15 endpoints have check results within 5 seconds of each other (concurrent execution)",
+      "Step 4: Verify total execution time is <10 seconds for all 15 checks (not sequential)",
+      "Step 5: Verify no hanging httpx connections in logs"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "FastAPI and Streamlit both access SQLite database without conflicts",
+    "steps": [
+      "Step 1: Start both FastAPI (port 8000) and Streamlit (port 8501) services",
+      "Step 2: Create endpoint via FastAPI POST /endpoints",
+      "Step 3: Immediately navigate to Streamlit dashboard",
+      "Step 4: Verify new endpoint appears in Streamlit grid (no DB lock errors)",
+      "Step 5: Trigger check via Streamlit while FastAPI scheduler is running",
+      "Step 6: Verify both processes can read/write database concurrently"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "APScheduler jobs reload from database after FastAPI restart",
+    "steps": [
+      "Step 1: Create 3 enabled endpoints with different check intervals",
+      "Step 2: Start FastAPI service and verify APScheduler loads all 3 jobs",
+      "Step 3: Stop FastAPI service",
+      "Step 4: Restart FastAPI service",
+      "Step 5: Verify all 3 jobs are re-added to APScheduler from database",
+      "Step 6: Verify checks continue executing at configured intervals"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Disabled endpoints are not scheduled for health checks",
+    "steps": [
+      "Step 1: Create endpoint with enabled=false",
+      "Step 2: Wait for 2 check intervals",
+      "Step 3: Query checks table and verify no checks were executed for disabled endpoint",
+      "Step 4: Enable endpoint via PUT /endpoints/:id/toggle",
+      "Step 5: Verify APScheduler adds job and checks start executing"
+    ],
+    "passes": false
+  }
+]
