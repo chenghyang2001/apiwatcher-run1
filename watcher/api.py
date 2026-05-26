@@ -241,6 +241,10 @@ async def trigger_manual_check(endpoint_id: int, db: Session = Depends(get_db_se
         db.commit()
         db.refresh(check)
 
+        # Evaluate incident detection logic
+        from .incident import evaluate_incident
+        await evaluate_incident(endpoint_id, db)
+
         return {
             "check_id": check.id,
             "passed": check.passed,

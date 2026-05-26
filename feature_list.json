@@ -97,7 +97,7 @@
       "Step 3: Verify check result has passed=false",
       "Step 4: Verify error_message mentions status code 500"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -108,7 +108,7 @@
       "Step 3: Verify check result has passed=false",
       "Step 4: Verify error_message contains 'timeout' or 'TimeoutError'"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -120,7 +120,7 @@
       "Step 4: Verify 1 incident exists with started_at set, resolved_at=null",
       "Step 5: Verify incident.failure_count >= 3"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -132,7 +132,7 @@
       "Step 4: Query incidents table and verify incident.resolved_at is now set",
       "Step 5: Verify duration_mins is calculated correctly"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
