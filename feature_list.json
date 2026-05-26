@@ -8,7 +8,7 @@
       "Step 3: Verify response status is 200 OK",
       "Step 4: Verify response contains health status indicator"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -20,7 +20,7 @@
       "Step 4: Verify response contains endpoint id and all submitted fields",
       "Step 5: Query database to confirm endpoint was persisted"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -31,7 +31,7 @@
       "Step 3: Verify response is array with 3 endpoints",
       "Step 4: Verify each endpoint has required fields: id, name, url, method, environment"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -42,7 +42,7 @@
       "Step 3: Verify response status is 200 OK",
       "Step 4: GET /endpoints/:id and verify check_interval updated to 600"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -53,7 +53,7 @@
       "Step 3: Verify response status is 204 No Content or 200 OK",
       "Step 4: GET /endpoints/:id and verify 404 Not Found"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -64,7 +64,7 @@
       "Step 3: Verify response contains check result with passed=true",
       "Step 4: Query checks table and verify new check row was inserted"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -75,7 +75,7 @@
       "Step 3: Verify endpoint.enabled is now false",
       "Step 4: Toggle again and verify enabled=true"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
