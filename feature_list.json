@@ -269,7 +269,7 @@
       "Step 5: Verify status cards are visible for all 6 endpoints",
       "Step 6: Verify summary metrics row shows total/UP/degraded/down counts"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -282,7 +282,7 @@
       "Step 5: Click 'Production' tab",
       "Step 6: Verify only 2 production endpoints are displayed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -294,7 +294,7 @@
       "Step 4: Verify Plotly line chart is rendered (check for plotly class elements)",
       "Step 5: Verify red dashed threshold line is visible at configured max response time"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -307,7 +307,7 @@
       "Step 5: Verify last 5 resolved incidents are shown",
       "Step 6: Click 'View Claude Report' expander and verify AI report text is visible"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -320,7 +320,7 @@
       "Step 5: Verify check history table is rendered with pagination",
       "Step 6: Verify alert configuration form is visible with channel/target fields"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -333,7 +333,7 @@
       "Step 5: Query checks table and verify 3 new check rows were created for staging endpoints",
       "Step 6: Verify all checks have recent timestamps (within last 10 seconds)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -405,7 +405,7 @@
       "Step 4: Verify new endpoint appears in dashboard grid (auto-refresh occurred)",
       "Step 5: Verify page did not do full reload (check browser console for st.rerun)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
