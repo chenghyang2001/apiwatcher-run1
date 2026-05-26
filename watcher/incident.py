@@ -108,8 +108,9 @@ async def evaluate_incident(endpoint_id: int, db: Session):
             await send_incident_alerts(endpoint, incident, db, event_type="incident_opened")
 
             # Trigger Claude AI report generation (async, non-blocking)
+            # Note: generate_report creates its own DB session
             from .claude_reporter import generate_report
-            asyncio.create_task(generate_report(endpoint, incident, db))
+            asyncio.create_task(generate_report(endpoint_id, incident.id))
 
             return
 

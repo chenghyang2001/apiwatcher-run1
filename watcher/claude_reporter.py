@@ -30,14 +30,16 @@ def get_api_key() -> Optional[str]:
         return None
 
 
-async def generate_report(endpoint: Endpoint, incident: Incident, db: Session) -> bool:
+async def generate_report(endpoint_id: int, incident_id: int) -> bool:
     """
     Generate Claude AI incident report and store in incident.claude_report.
 
+    Creates its own database session to avoid session closure issues when
+    called as an async task.
+
     Args:
-        endpoint: Endpoint instance
-        incident: Incident instance
-        db: Database session
+        endpoint_id: ID of the endpoint
+        incident_id: ID of the incident
 
     Returns:
         True if report generated successfully, False otherwise
@@ -47,7 +49,19 @@ async def generate_report(endpoint: Endpoint, incident: Incident, db: Session) -
         print("⚠ ANTHROPIC_API_KEY not set, skipping Claude report generation")
         return False
 
+    # Create a new database session for this async task
+    from .db import get_db_session
+    db = next(get_db_session())
+
     try:
+        # Fetch endpoint and incident
+        endpoint = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+        incident = db.query(Incident).filter(Incident.id == incident_id).first()
+
+        if not endpoint or not incident:
+            print(f"⚠ Endpoint or incident not found (endpoint_id={endpoint_id}, incident_id={incident_id})")
+            return False
+
         # Fetch last 20 check results for context
         recent_checks = (
             db.query(Check)
@@ -122,9 +136,17 @@ Write in clear, non-technical language suitable for both developers and managers
 
     except Exception as e:
         print(f"Error generating Claude report: {e}")
-        incident.claude_report = f"Error generating report: {str(e)}"
-        db.commit()
+        # Try to save error message to database
+        try:
+            incident_obj = db.query(Incident).filter(Incident.id == incident_id).first()
+            if incident_obj:
+                incident_obj.claude_report = f"Error generating report: {str(e)}"
+                db.commit()
+        except:
+            pass
         return False
+    finally:
+        db.close()
 
 
 async def reanalyze_incident(incident_id: int, db: Session) -> bool:
@@ -142,13 +164,11 @@ async def reanalyze_incident(incident_id: int, db: Session) -> bool:
     if not incident:
         return False
 
-    endpoint = db.query(Endpoint).filter(Endpoint.id == incident.endpoint_id).first()
-    if not endpoint:
-        return False
+    endpoint_id = incident.endpoint_id
 
     # Clear existing report
     incident.claude_report = None
     db.commit()
 
-    # Generate new report
-    return await generate_report(endpoint, incident, db)
+    # Generate new report (creates its own session)
+    return await generate_report(endpoint_id, incident_id)
