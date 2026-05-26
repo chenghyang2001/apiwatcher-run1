@@ -441,7 +441,7 @@
       "Step 4: Verify total execution time is <10 seconds for all 15 checks (not sequential)",
       "Step 5: Verify no hanging httpx connections in logs"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
