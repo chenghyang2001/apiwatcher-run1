@@ -211,7 +211,7 @@
       "Step 3: Verify alerter.send_email() was called with incident details",
       "Step 4: Check alert log table for email send record with timestamp"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -222,7 +222,7 @@
       "Step 3: Verify httpx POST to Slack webhook was made",
       "Step 4: Verify alert log contains Slack send record with message preview"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -233,7 +233,7 @@
       "Step 3: Verify plyer.notification.notify() was called",
       "Step 4: Verify alert log contains desktop notification record"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -245,7 +245,7 @@
       "Step 4: Verify second alert is NOT sent",
       "Step 5: Wait 15+ minutes and trigger third incident, verify alert IS sent"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
