@@ -167,7 +167,7 @@
       "Step 3: Verify uptime_24h = 80.0%",
       "Step 4: Verify SLA target comparison (e.g., below 99.9% target)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -178,7 +178,7 @@
       "Step 3: Verify response Content-Type is text/csv",
       "Step 4: Verify CSV contains columns: date, uptime_24h, uptime_7d, uptime_30d"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
