@@ -418,3 +418,99 @@ await evaluate_incident(endpoint_id, db)
 3. "Fix critical bug: manual check endpoint now triggers incident detection"
 
 ---
+
+=== APIWatcher Session 3 Progress Report ===
+Date: 2026-05-26
+Agent: Testing Agent (Session 3)
+
+## Mission: Test Scheduler, SLA, and YAML Features + Fix Bugs
+
+### Features Tested and Verified
+
+**Feature #7: Scheduled health checks ✓**
+- Created endpoint with 60-second check_interval
+- APScheduler automatically loaded job on startup
+- Waited 65 seconds and verified check executed
+- Database shows Check ID=15, passed=true, status_code=200, response_time=974ms
+
+**Features #14-15: SLA Tracking ✓**
+- Created test endpoint with 100 check rows (80 passed, 20 failed)
+- GET /sla/:endpoint_id returns uptime_24h=80.0%, uptime_7d=80.0%, uptime_30d=80.0%
+- SLA breach detection working: check_sla_breach() correctly identifies 80.0% < 99.9%
+- CSV export working: GET /sla/:endpoint_id/export returns valid CSV
+- Content-Type: text/plain; charset=utf-8
+- CSV format verified: date,uptime_24h,uptime_7d,uptime_30d
+
+**Features #16-17: YAML Import/Export ✓**
+- **Bug Found**: Route order issue - /endpoints/export after /endpoints/{endpoint_id}
+- **Bug Fixed**: Moved export/import routes before parameterized routes
+- **Bug Fixed**: Added Body(..., media_type="text/plain") to import endpoint
+- GET /endpoints/export returns valid YAML with all endpoints
+- Created test_import.yaml with 2 endpoints
+- POST /endpoints/import successfully imported 2 endpoints
+- Verified endpoint count: 6 → 8
+
+### Bugs Found and Fixed
+
+1. **Critical: FastAPI Route Order Bug**
+   - Problem: /endpoints/export defined after /endpoints/{endpoint_id}
+   - Result: FastAPI tries to parse "export" as integer → 422 Unprocessable Entity
+   - Fix: Moved export/import routes before parameterized routes in api.py
+   - Lines changed: Relocated lines 287-335 to before line 148
+
+2. **Medium: Import Endpoint Parameter Bug**
+   - Problem: yaml_content: str without Body() → FastAPI expects query parameter
+   - Result: POST body not read, validation error
+   - Fix: Changed to yaml_content: str = Body(..., media_type="text/plain")
+   - Also added: from fastapi import Body
+
+### Code Quality
+
+- All tested features working correctly
+- No Python exceptions or crashes
+- APScheduler integration solid
+- SLA calculations accurate
+- YAML serialization/deserialization working
+- FastAPI route order now correct
+
+### Progress Statistics
+
+- **Features Tested This Session**: 5 (Feature #7, #14, #15, #16, #17)
+- **Features Passing**: 16/40 (40%)
+- **Features Remaining**: 24/40 (60%)
+- **Bugs Found**: 2 (both critical/medium, both fixed)
+- **Git Commits**: 3
+  1. Feature #7 (scheduled checks)
+  2. Features #14-15 (SLA tracking)
+  3. Features #16-17 + bug fixes (YAML import/export)
+
+### What Works Now
+
+✅ Scheduled health checks run automatically at configured intervals
+✅ SLA uptime calculation for 24h/7d/30d windows
+✅ SLA CSV export with proper Content-Type
+✅ SLA breach detection logic
+✅ YAML endpoint export
+✅ YAML endpoint import with validation
+✅ FastAPI route ordering correct
+
+### Session Notes
+
+- VPS environment: Puppeteer sandbox issues persist (Linux headless)
+- Testing approach: curl for API, direct DB queries, Python scripts
+- Scheduler: Working perfectly, loads jobs on startup
+- ANTHROPIC_API_KEY: Not available (/tmp/api-key doesn't exist)
+- Claude AI features: Skipped (Features #12-13)
+
+### Next Session Priorities
+
+1. Test Feature #18: Incident query API endpoints
+2. Test Feature #23: Check history API with pagination
+3. Test alert features if possible (Features #19-22)
+4. Continue with remaining testable features
+5. Consider setting up Puppeteer for UI testing or use alternative
+
+---
+
+Session 3 In Progress. 16/40 features passing (40%).
+
