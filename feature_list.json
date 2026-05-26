@@ -86,7 +86,7 @@
       "Step 3: Query checks table for endpoint_id",
       "Step 4: Verify at least 1 check row exists with passed=true, status_code=200, response_time>0"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
