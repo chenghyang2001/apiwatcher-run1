@@ -51,7 +51,7 @@ async def generate_report(endpoint_id: int, incident_id: int) -> bool:
 
     # Create a new database session for this async task
     from .db import get_db_session
-    db = next(get_db_session())
+    db = get_db_session()
 
     try:
         # Fetch endpoint and incident

@@ -144,7 +144,7 @@
       "Step 4: Query incidents table and verify claude_report field is populated",
       "Step 5: Verify report contains plain-English summary and root causes"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -156,7 +156,7 @@
       "Step 4: Wait for Claude API response",
       "Step 5: Verify claude_report is repopulated with fresh analysis"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
