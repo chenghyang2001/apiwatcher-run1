@@ -11,9 +11,12 @@ from .models import Base
 DATABASE_URL = "sqlite:///./data/apiwatcher.db"
 
 # Create engine with check_same_thread=False for concurrent access from scheduler + API
+# Increased pool size to support many concurrent scheduled checks
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
+    pool_size=30,  # Increased from default 5 to support concurrent checks
+    max_overflow=20,  # Increased from default 10 for burst capacity
     echo=False  # Set to True for SQL query logging
 )
 

@@ -467,7 +467,7 @@
       "Step 5: Verify all 3 jobs are re-added to APScheduler from database",
       "Step 6: Verify checks continue executing at configured intervals"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
