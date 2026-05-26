@@ -429,7 +429,7 @@
       "Step 4: Update endpoint to keyword_check='nonexistent_keyword'",
       "Step 5: Trigger check and verify it fails with error_message mentioning missing keyword"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -479,6 +479,6 @@
       "Step 4: Enable endpoint via PUT /endpoints/:id/toggle",
       "Step 5: Verify APScheduler adds job and checks start executing"
     ],
-    "passes": false
+    "passes": true
   }
 ]
