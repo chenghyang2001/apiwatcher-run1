@@ -454,7 +454,7 @@
       "Step 5: Trigger check via Streamlit while FastAPI scheduler is running",
       "Step 6: Verify both processes can read/write database concurrently"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
