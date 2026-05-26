@@ -7,7 +7,7 @@ import yaml
 from contextlib import asynccontextmanager
 from typing import List, Optional
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -141,6 +141,57 @@ async def create_endpoint(endpoint: EndpointCreate, db: Session = Depends(get_db
             "enabled": new_endpoint.enabled,
             "message": "Endpoint created successfully"
         }
+    finally:
+        db.close()
+
+
+@app.get("/endpoints/export", response_class=PlainTextResponse)
+async def export_endpoints_yaml(db: Session = Depends(get_db_session)):
+    """Export all endpoints as YAML."""
+    try:
+        endpoints = db.query(Endpoint).all()
+        export_data = []
+
+        for e in endpoints:
+            export_data.append({
+                "name": e.name,
+                "url": e.url,
+                "method": e.method,
+                "headers": e.headers,
+                "body": e.body,
+                "environment": e.environment,
+                "check_interval": e.check_interval,
+                "timeout_ms": e.timeout_ms,
+                "expected_status": e.expected_status,
+                "keyword_check": e.keyword_check,
+                "sla_target": e.sla_target,
+                "enabled": e.enabled
+            })
+
+        return yaml.dump(export_data, default_flow_style=False)
+    finally:
+        db.close()
+
+
+@app.post("/endpoints/import")
+async def import_endpoints_yaml(yaml_content: str = Body(..., media_type="text/plain"), db: Session = Depends(get_db_session)):
+    """Import endpoints from YAML."""
+    try:
+        data = yaml.safe_load(yaml_content)
+        if not isinstance(data, list):
+            raise HTTPException(status_code=400, detail="YAML must be a list of endpoints")
+
+        imported_count = 0
+        for item in data:
+            endpoint = Endpoint(**item)
+            db.add(endpoint)
+            imported_count += 1
+
+        db.commit()
+
+        return {"message": f"Imported {imported_count} endpoints"}
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
     finally:
         db.close()
 
@@ -280,57 +331,6 @@ async def toggle_endpoint(endpoint_id: int, db: Session = Depends(get_db_session
             "enabled": endpoint.enabled,
             "message": f"Endpoint {'enabled' if endpoint.enabled else 'disabled'}"
         }
-    finally:
-        db.close()
-
-
-@app.get("/endpoints/export", response_class=PlainTextResponse)
-async def export_endpoints_yaml(db: Session = Depends(get_db_session)):
-    """Export all endpoints as YAML."""
-    try:
-        endpoints = db.query(Endpoint).all()
-        export_data = []
-
-        for e in endpoints:
-            export_data.append({
-                "name": e.name,
-                "url": e.url,
-                "method": e.method,
-                "headers": e.headers,
-                "body": e.body,
-                "environment": e.environment,
-                "check_interval": e.check_interval,
-                "timeout_ms": e.timeout_ms,
-                "expected_status": e.expected_status,
-                "keyword_check": e.keyword_check,
-                "sla_target": e.sla_target,
-                "enabled": e.enabled
-            })
-
-        return yaml.dump(export_data, default_flow_style=False)
-    finally:
-        db.close()
-
-
-@app.post("/endpoints/import")
-async def import_endpoints_yaml(yaml_content: str, db: Session = Depends(get_db_session)):
-    """Import endpoints from YAML."""
-    try:
-        data = yaml.safe_load(yaml_content)
-        if not isinstance(data, list):
-            raise HTTPException(status_code=400, detail="YAML must be a list of endpoints")
-
-        imported_count = 0
-        for item in data:
-            endpoint = Endpoint(**item)
-            db.add(endpoint)
-            imported_count += 1
-
-        db.commit()
-
-        return {"message": f"Imported {imported_count} endpoints"}
-    except yaml.YAMLError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
     finally:
         db.close()
 

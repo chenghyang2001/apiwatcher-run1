@@ -189,7 +189,7 @@
       "Step 3: Verify response is valid YAML format",
       "Step 4: Verify YAML contains all 3 endpoints with name, url, method, environment fields"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
@@ -200,7 +200,7 @@
       "Step 3: Verify response indicates 2 endpoints imported",
       "Step 4: GET /endpoints and verify the 2 new endpoints exist in database"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
