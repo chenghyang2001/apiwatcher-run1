@@ -354,7 +354,7 @@
       "Step 13: Verify resolved alert was sent",
       "Step 14: Verify incident moves from 'Open' to 'Resolved' section in Streamlit UI"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -367,7 +367,7 @@
       "Step 5: Verify degraded endpoint card has amber (#F59E0B) styling",
       "Step 6: Verify failing endpoint card has red (#EF4444) styling"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -380,7 +380,7 @@
       "Step 5: Verify MEDIUM severity badge is orange (#F97316)",
       "Step 6: Verify HIGH severity badge is red (#EF4444)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -393,7 +393,7 @@
       "Step 5: Verify red dashed horizontal line appears at 1500ms mark on Y-axis",
       "Step 6: Verify line color is #EF4444 and style is dashed"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -417,7 +417,7 @@
       "Step 4: Verify uptime percentages are displayed in large bold font (st.metric style)",
       "Step 5: Verify labels '24h Uptime', '7d Uptime', '30d Uptime' are shown in small font above values"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

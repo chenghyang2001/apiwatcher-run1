@@ -127,6 +127,12 @@ def render_status_card(endpoint, latest_check, uptime_24h, open_incident):
 
 def render_response_time_chart(endpoint_id, db):
     """Render Plotly response time chart for last 24h."""
+    # Get endpoint to access timeout_ms threshold
+    endpoint = db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+    if not endpoint:
+        st.error("Endpoint not found")
+        return
+
     cutoff = datetime.utcnow() - timedelta(hours=24)
 
     checks = (
@@ -162,12 +168,12 @@ def render_response_time_chart(endpoint_id, db):
         marker=dict(size=4)
     ))
 
-    # Add threshold line at 2000ms
+    # Add threshold line using endpoint's configured timeout_ms
     fig.add_hline(
-        y=2000,
+        y=endpoint.timeout_ms,
         line_dash="dash",
         line_color="#EF4444",
-        annotation_text="Threshold (2000ms)",
+        annotation_text=f"Threshold ({endpoint.timeout_ms}ms)",
         annotation_position="right"
     )
 
@@ -252,9 +258,9 @@ def render_endpoint_detail_sidebar(endpoint_id, db):
     uptime_30d = calculate_uptime(endpoint_id, 720, db)
 
     col1, col2, col3 = st.sidebar.columns(3)
-    col1.metric("24h", f"{uptime_24h:.2f}%")
-    col2.metric("7d", f"{uptime_7d:.2f}%")
-    col3.metric("30d", f"{uptime_30d:.2f}%")
+    col1.metric("24h Uptime", f"{uptime_24h:.2f}%")
+    col2.metric("7d Uptime", f"{uptime_7d:.2f}%")
+    col3.metric("30d Uptime", f"{uptime_30d:.2f}%")
 
     # Check History
     st.sidebar.subheader("Recent Checks")
