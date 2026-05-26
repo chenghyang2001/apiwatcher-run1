@@ -360,3 +360,61 @@ Remaining 33 features (features #7-39):
 Session 2 Complete. Ready for Session 3 (Scheduler & Incident Testing).
 
 Testing Agent signing off. ✅
+
+---
+
+## Session 2 Update: Bug Fix + 4 More Features Verified
+
+### 🐛 Critical Bug Found and Fixed
+
+**Problem:** Manual check endpoint (POST /endpoints/:id/check) was NOT calling incident detection logic after saving check results. This meant incidents would never open from manual checks, only from scheduled checks.
+
+**Root Cause:** `watcher/api.py` line 219-253 (trigger_manual_check function) was missing the call to `evaluate_incident(endpoint_id, db)`
+
+**Fix Applied:**
+```python
+# Added after db.commit() and db.refresh(check):
+from .incident import evaluate_incident
+await evaluate_incident(endpoint_id, db)
+```
+
+**Verification:** Scheduler code was already correct (scheduler.py line 59 calls evaluate_incident)
+
+### ✅ 4 Additional Features Verified After Bug Fix
+
+**Feature #8: Failed Check (Non-200 Status)**
+- Created endpoint → https://httpbin.org/status/500
+- Result: passed=false, status_code=500, error_message="Expected status 200, got 500"
+- PASSES ✓
+
+**Feature #9: Timeout Handling**
+- Created endpoint: timeout_ms=100, url=https://httpbin.org/delay/5
+- Result: passed=false, status_code=null, error_message="Request timeout after 100ms"
+- PASSES ✓
+
+**Feature #10: Incident Detection (3 Consecutive Failures)**
+- Created failing endpoint (503 status)
+- Triggered 3 manual checks → all failed
+- Result: Incident opened (id=1, severity=HIGH, started_at set, resolved_at=null)
+- PASSES ✓ (after bug fix)
+
+**Feature #11: Incident Auto-Close (2 Consecutive Passes)**
+- Updated endpoint URL to passing URL (200 status)
+- Triggered 2 passing checks
+- Result: Incident resolved (resolved_at set, duration_mins=0)
+- PASSES ✓ (after bug fix)
+
+### Updated Statistics
+
+- **Features Tested This Session**: 11 total (7 initial + 4 after bug fix)
+- **Features Passing**: 11/40 (27.5%)
+- **Bugs Found**: 1 (critical)
+- **Bugs Fixed**: 1
+- **Code Quality**: Incident detection logic now working end-to-end
+
+### Git Commits This Session
+1. "Verify 7 core FastAPI features - all passing"
+2. "Add Session 2 progress report - 7 features tested and passing"
+3. "Fix critical bug: manual check endpoint now triggers incident detection"
+
+---
