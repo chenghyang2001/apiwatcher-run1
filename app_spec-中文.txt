@@ -1,0 +1,467 @@
+<project_specification>
+  <project_name>APIWatcher — REST API 端點監控工具</project_name>
+
+  <overview>
+    APIWatcher 是一個輕量級的網頁監控工具，持續檢查 REST API 端點的可用性、正確性與效能。
+    背景排程器依設定間隔執行健康檢查，並將結果寫入 SQLite；Streamlit 儀表板則即時呈現
+    可用率、回應時間趨勢與事故歷程。當 Claude 在檢查記錄中偵測到異常模式時，會生成
+    易讀的事故分析報告並建議可能的根本原因。團隊可以從單一儀表板監控開發、預備與生產
+    三種環境。
+  </overview>
+
+  <technology_stack>
+    <api_key>
+        測試用的 API Key 位於 /tmp/api-key。此檔案無法讀取，但可在程式碼中直接引用路徑。
+    </api_key>
+    <backend>
+      <language>Python 3.11+</language>
+      <framework>FastAPI（背景服務 + REST 設定 API）</framework>
+      <scheduler>APScheduler 3.x（AsyncIOScheduler）</scheduler>
+      <http_client>httpx（非同步）</http_client>
+      <database>SQLite，透過 SQLAlchemy 2.x</database>
+      <port>FastAPI 服務運行於 port 8000</port>
+    </backend>
+    <frontend>
+      <framework>Streamlit</framework>
+      <charts>Plotly Express</charts>
+      <port>Streamlit 儀表板運行於 port 8501</port>
+    </frontend>
+    <ai>
+      <model>Anthropic Claude API（claude-sonnet-4-6）</model>
+    </ai>
+    <notifications>
+      <email>smtplib，支援 TLS</email>
+      <slack>httpx Slack webhook</slack>
+      <desktop>plyer.notification</desktop>
+    </notifications>
+    <dependencies>
+      fastapi, streamlit, apscheduler, httpx, sqlalchemy, plotly, anthropic, uvicorn, plyer
+    </dependencies>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - 必須設定 ANTHROPIC_API_KEY 環境變數
+      - Python 3.11+ 環境，並安裝 pip
+      - SQLite 資料庫於首次啟動時自動建立
+      - FastAPI 服務啟動於 port 8000，Streamlit 儀表板啟動於 port 8501
+    </environment_setup>
+  </prerequisites>
+
+  <core_features>
+    <endpoint_configuration>
+      - 透過 Streamlit 表單或 REST API（POST /endpoints）新增、編輯、刪除端點
+      - 欄位：名稱、URL、HTTP 方法（GET/POST/PUT）、標頭（JSON）、請求主體（JSON）
+      - 環境分群指派：dev / staging / production
+      - 可單獨啟用或停用端點，無需刪除
+      - 以 YAML 檔案匯入或匯出端點設定
+    </endpoint_configuration>
+
+    <health_check_engine>
+      - APScheduler 依各端點設定的間隔（60 秒到 86400 秒）觸發檢查
+      - 每次檢查的驗證項目：
+        - 狀態碼是否符合預期值（預設：200）
+        - 回應時間是否低於門檻（預設：2000 毫秒）
+        - 回應主體是否包含指定關鍵字（選填）
+        - 回應 JSON 是否符合 schema（選填，jsonschema 驗證）
+      - 檢查結果儲存內容：狀態、response_time_ms、status_code、error_message
+      - 非同步執行：所有到期的檢查以 httpx AsyncClient 並發觸發
+    </health_check_engine>
+
+    <sla_uptime_tracking>
+      - 可用率（%）依滾動時間窗計算：過去 24 小時 / 7 天 / 30 天
+      - 公式：各端點各時間窗（通過次數 / 總次數）× 100
+      - SLA 目標可依端點設定（預設：99.9%）
+      - 儀表板格狀清單顯示 SLA 違規指示
+      - 可依端點匯出歷史 SLA 為 CSV
+    </sla_uptime_tracking>
+
+    <incident_detection>
+      - 開啟事故條件：同一端點連續 3 次檢查失敗
+      - 事故欄位：start_time、end_time、duration_minutes、failure_count、resolved_at
+      - 自動關閉事故條件：事故開啟後連續 2 次檢查通過
+      - 事故嚴重性：LOW（回應緩慢）、MEDIUM（部分失敗）、HIGH（完全中斷）
+      - 事故時間軸檢視：顯示事故期間的各次檢查結果
+    </incident_detection>
+
+    <claude_ai_incident_reports>
+      - 事故開啟時：以最近 20 筆檢查結果為背景呼叫 Claude
+      - Claude 報告範本：
+        - 何處失敗及持續時間
+        - 最後一次成功檢查的時間戳記
+        - 錯誤模式分析（逾時 vs 503 vs 400 等）
+        - 2-3 個可能根本原因及可能性百分比
+        - 建議的立即修復步驟
+      - 報告儲存於 incidents 資料表，可在 Streamlit 事故詳情頁面查閱
+      - 手動「重新分析」按鈕，可用最新資料刷新 Claude 報告
+    </claude_ai_incident_reports>
+
+    <alert_channels>
+      - Email 告警：SMTP 支援 TLS，可設定寄件人/收件人，依端點開關
+      - Slack webhook：POST JSON 事故摘要至 webhook URL
+      - 桌面通知：plyer.notification，適合本機開發使用
+      - 告警時機：事故開啟、事故解除、SLA 違規
+      - 告警冷卻：同一端點重複告警最短間隔 15 分鐘
+      - 告警記錄：所有已發送的告警含時間戳記、通道、訊息預覽一併儲存
+    </alert_channels>
+
+    <response_time_trend_chart>
+      - Plotly 折線圖：各端點過去 24 小時的 response_time_ms
+      - 疊加層：在設定的最大回應時間處顯示紅色虛線門檻
+      - 支援縮放、平移、懸停提示（顯示精確毫秒值）
+      - 多端點疊加模式：在同一圖表上比較多個端點
+      - 每 60 秒透過 Streamlit st.rerun() 自動刷新
+    </response_time_trend_chart>
+
+    <multi_environment_dashboard>
+      - 環境選擇器：All / Dev / Staging / Production 分頁
+      - 狀態格狀清單：每個端點一張卡片，以綠/黃/紅色標示
+      - 摘要列：各環境的端點總數、通過數、失敗數、事故中數量
+      - 篩選條件：狀態（正常/中斷/降級）、SLA 達標、最後事故時間
+      - 立即批次檢查按鈕：對目前環境分頁的所有端點觸發即時檢查
+    </multi_environment_dashboard>
+  </core_features>
+
+  <database_schema>
+    <tables>
+      <endpoints>
+        - id INTEGER PRIMARY KEY AUTOINCREMENT
+        - name TEXT NOT NULL
+        - url TEXT NOT NULL
+        - method TEXT NOT NULL DEFAULT 'GET'
+        - headers TEXT DEFAULT '{}'（JSON 字串）
+        - body TEXT DEFAULT '{}'（JSON 字串）
+        - environment TEXT DEFAULT 'production'
+        - check_interval INTEGER DEFAULT 300（秒）
+        - timeout_ms INTEGER DEFAULT 5000
+        - expected_status INTEGER DEFAULT 200
+        - keyword_check TEXT（選填，回應主體中的關鍵字）
+        - sla_target REAL DEFAULT 99.9
+        - enabled BOOLEAN DEFAULT 1
+        - created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      </endpoints>
+
+      <checks>
+        - id INTEGER PRIMARY KEY AUTOINCREMENT
+        - endpoint_id INTEGER NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE
+        - checked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        - passed BOOLEAN NOT NULL
+        - status_code INTEGER
+        - response_time INTEGER（毫秒）
+        - error_message TEXT
+        - response_body TEXT（截斷為 500 字元）
+      </checks>
+
+      <incidents>
+        - id INTEGER PRIMARY KEY AUTOINCREMENT
+        - endpoint_id INTEGER NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE
+        - started_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        - resolved_at DATETIME
+        - duration_mins INTEGER
+        - failure_count INTEGER DEFAULT 1
+        - severity TEXT DEFAULT 'MEDIUM'（LOW | MEDIUM | HIGH）
+        - claude_report TEXT
+        - acknowledged BOOLEAN DEFAULT 0
+      </incidents>
+
+      <alert_configs>
+        - id INTEGER PRIMARY KEY AUTOINCREMENT
+        - endpoint_id INTEGER REFERENCES endpoints(id) ON DELETE CASCADE
+        - channel TEXT NOT NULL（email | slack | desktop）
+        - target TEXT NOT NULL（Email 地址或 webhook URL）
+        - on_incident BOOLEAN DEFAULT 1
+        - on_resolve BOOLEAN DEFAULT 1
+        - on_sla_breach BOOLEAN DEFAULT 1
+        - cooldown_mins INTEGER DEFAULT 15
+        - last_sent_at DATETIME
+      </alert_configs>
+    </tables>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <endpoints_config>
+      - GET /endpoints（列出所有已設定的端點）
+      - POST /endpoints（新增端點）
+      - GET /endpoints/:id（取得端點詳情）
+      - PUT /endpoints/:id（更新端點設定）
+      - DELETE /endpoints/:id（刪除端點）
+      - POST /endpoints/:id/check（觸發立即手動檢查）
+      - PUT /endpoints/:id/toggle（啟用/停用端點）
+      - GET /endpoints/export（將所有端點匯出為 YAML）
+      - POST /endpoints/import（從 YAML 匯入端點）
+    </endpoints_config>
+
+    <checks>
+      - GET /checks/:endpoint_id（取得檢查記錄，分頁）
+      - GET /checks/:endpoint_id/latest（取得最近一次檢查結果）
+    </checks>
+
+    <incidents>
+      - GET /incidents（列出所有事故，可選篩選：open/resolved）
+      - GET /incidents/:id（取得事故詳情，含 Claude 報告）
+      - PUT /incidents/:id/acknowledge（標記事故為已確認）
+      - POST /incidents/:id/reanalyze（觸發新的 Claude AI 分析）
+    </incidents>
+
+    <sla>
+      - GET /sla/:endpoint_id（取得 SLA 指標：24 小時/7 天/30 天可用率）
+      - GET /sla/:endpoint_id/export（將 SLA 歷史匯出為 CSV）
+    </sla>
+
+    <alerts>
+      - GET /alerts（取得告警發送記錄）
+      - GET /alert-configs/:endpoint_id（取得端點的告警設定）
+      - PUT /alert-configs/:endpoint_id（更新告警設定）
+    </alerts>
+
+    <health>
+      - GET /health（服務健康檢查端點）
+    </health>
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <main_structure>
+      - 雙程序架構：FastAPI（:8000）+ Streamlit（:8501）共用 SQLite 資料庫
+      - Streamlit 直接讀取資料庫；寫入操作透過 FastAPI REST API
+      - 每 60 秒透過 st.rerun() 自動刷新
+      - 頂部環境分頁：All / Dev / Staging / Production
+    </main_structure>
+
+    <dashboard_header>
+      - APIWatcher 標題與環境分頁選擇器
+      - 摘要指標列：端點總數 / 正常數 / 降級數 / 中斷數
+      - 立即批次檢查按鈕（對目前環境分頁的所有端點觸發即時檢查）
+    </dashboard_header>
+
+    <status_grid>
+      - st.columns(3)：每列顯示三張端點卡片
+      - 色碼卡片：綠色邊框（正常）/ 黃色（降級）/ 紅色（中斷/事故）
+      - 卡片內容：端點名稱、24 小時可用率、平均回應時間（毫秒）、事故標籤
+      - 點擊卡片可展開端點詳情側欄
+    </status_grid>
+
+    <response_time_chart>
+      - Plotly 折線圖：各端點過去 24 小時的 response_time_ms（st.plotly_chart）
+      - 設定最大回應時間處的紅色虛線水平門檻
+      - 縮放 / 平移 / 懸停提示，顯示精確毫秒值與時間戳記
+      - 多端點疊加模式：透過圖例切換各端點的顯示/隱藏
+    </response_time_chart>
+
+    <incident_log>
+      - 右欄面板，顯示進行中事故及最近 5 筆已解除的事故
+      - 每筆事故：端點名稱、started_at、duration_mins、嚴重性標籤顏色
+      - st.expander：「查看 Claude 報告」展開 AI 分析文字
+      - 確認按鈕（確認後變為灰色/打勾狀態）
+    </incident_log>
+
+    <endpoint_detail_sidebar>
+      - SLA 指標區：以 st.metric 顯示 24 小時 / 7 天 / 30 天可用率
+      - 回應時間直方圖（Plotly 長條圖）
+      - 檢查記錄表格：分頁顯示，每頁 50 筆（st.dataframe）
+      - Claude 事故報告區塊（若目前事故有報告則顯示）
+      - 告警設定表單：通道、目標、事故/解除/SLA 違規開關
+    </endpoint_detail_sidebar>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      - 狀態正常：綠色（#22C55E）
+      - 狀態降級：琥珀色（#F59E0B）
+      - 狀態中斷 / 事故中：紅色（#EF4444）
+      - 嚴重性 LOW 標籤：藍色（#3B82F6）
+      - 嚴重性 MEDIUM 標籤：橙色（#F97316）
+      - 嚴重性 HIGH 標籤：紅色（#EF4444）
+      - 圖表門檻線：紅色虛線（#EF4444）
+      - 背景：Streamlit 預設（淺色或深色主題）
+    </color_palette>
+
+    <typography>
+      - Streamlit 預設無襯線系統字型
+      - 可用率與回應時間：st.metric（大粗體數值，小標籤）
+      - 事故報告內文：易讀散文，無技術術語
+      - JSON/程式碼值：st.code，等寬字型
+    </typography>
+
+    <components>
+      <status_card>
+        - 依狀態以色碼標示左側邊框或背景色調
+        - 可用率為主要指標（大字）
+        - 平均回應時間為次要指標（小字）
+        - 事故中疊加標籤（紅色膠囊）
+      </status_card>
+
+      <chart>
+        - Plotly Express 折線圖，配合深色/淺色主題
+        - 以 add_hline 紅色虛線顯示門檻疊加層
+        - 懸停提示：時間戳記 + 毫秒值
+        - 多端點：各折線以不同顏色區分，透過圖例切換
+      </chart>
+
+      <incident_card>
+        - 嚴重性標籤：彩色膠囊（LOW/MEDIUM/HIGH）
+        - 持續時間顯示為 X 分鐘 或 X 小時 Y 分鐘
+        - st.expander 顯示 Claude AI 報告（預設收合）
+        - 確認按鈕，點擊後變為停用/打勾狀態
+      </incident_card>
+    </components>
+  </design_system>
+
+  <key_interactions>
+    <scheduled_check_execution>
+      1. APScheduler 以設定間隔為 endpoint_id 觸發排程工作
+      2. 呼叫 httpx.AsyncClient.request(method, url, headers, json, timeout)
+      3. 收到回應——或捕捉到例外（ConnectionError、TimeoutError）
+      4. 評估檢查結果：狀態碼比對、回應時間門檻、關鍵字是否存在
+      5. 將通過/失敗結果的 checks 記錄插入 SQLite
+      6. 事故邏輯：查詢最近 3 筆檢查——若全部失敗且無進行中事故，開啟新事故
+      7. 若最近 2 筆通過且事故進行中——關閉事故，設定 resolved_at，計算持續時間
+      8. 事故剛開啟 → alerter.send_all(endpoint, incident) 觸發所有已設定通道
+      9. 事故剛開啟 → 以非同步非阻塞方式呼叫 claude_reporter.generate(endpoint, incident)
+    </scheduled_check_execution>
+
+    <claude_incident_report_generation>
+      1. 端點（例如「金流 Gateway」）觸發事故
+      2. 從 checks 資料表依 id DESC 取得最近 20 筆檢查結果
+      3. 建立 Claude prompt：端點名稱/URL、JSON 格式的檢查記錄、分析指示
+      4. 以 timeout=30s、max_retries=2 呼叫 Anthropic SDK 的 claude-sonnet-4-6
+      5. 解析回應文字並儲存至 incidents.claude_report 欄位
+      6. Streamlit 下一次 60 秒刷新時從資料庫讀取更新後的事故資料
+      7. 事故卡片顯示「AI 報告已生成」標籤
+      8. 使用者點擊「查看 Claude 報告」，在 st.expander 中展開 AI 分析
+    </claude_incident_report_generation>
+
+    <streamlit_dashboard_refresh>
+      1. Streamlit 腳本在載入時及每 60 秒透過 st.rerun() 由上至下執行
+      2. 從 SQLite 讀取所有端點及各端點的最新一筆檢查
+      3. 渲染環境分頁（All/Dev/Staging/Production）及摘要指標
+      4. 渲染狀態格狀清單：3 欄版面，色碼卡片
+      5. 渲染 Plotly 回應時間圖表（checks 資料表中過去 24 小時的資料）
+      6. 渲染事故記錄面板（進行中 + 最近 5 筆已解除，含 Claude 報告）
+      7. 使用者點擊端點卡片 → session_state 儲存 selected_endpoint_id
+      8. 詳情側欄渲染 SLA 指標、檢查記錄、告警設定表單
+    </streamlit_dashboard_refresh>
+  </key_interactions>
+
+  <implementation_steps>
+    <step number="1">
+      <title>專案結構與資料庫層</title>
+      <tasks>
+        - 建立 watcher/ 套件，包含模組：models.py、db.py、scheduler.py、checker.py、incident.py、alerter.py、claude_reporter.py、api.py、dashboard.py
+        - 為所有 4 張資料表（endpoints、checks、incidents、alert_configs）定義 SQLAlchemy ORM 模型
+        - 建立引擎，設定 check_same_thread=False 以支援排程器與 API 的並發存取
+        - 以 contextmanager 搭配 try/finally 關閉模式撰寫 db.py session 工廠
+        - 啟動時以 Base.metadata.create_all(engine) 初始化 SQLite 資料庫
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>HTTP 檢查器與排程器</title>
+      <tasks>
+        - checker.py：非同步函式 run_check(endpoint) -> CheckResult dataclass
+        - 處理所有失敗情境：ConnectionError、TimeoutError、狀態碼不符、關鍵字未找到、JSON schema 驗證失敗
+        - scheduler.py：AsyncIOScheduler，啟動時從資料庫載入所有已啟用的端點
+        - 以 IntervalTrigger(seconds=endpoint.check_interval) 為每個端點排程工作
+        - 公開 add_job / remove_job / update_job 函式供 FastAPI 端點使用
+        - FastAPI 重啟時重新從資料庫載入所有工作（APScheduler 預設不持久化工作）
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>事故偵測與告警邏輯</title>
+      <tasks>
+        - incident.py：每次檢查結果儲存後呼叫 evaluate_incident(endpoint_id, db_session)
+        - 查詢最近 3 筆檢查：若全部失敗且無進行中事故 → INSERT 新事故，判斷嚴重性
+        - 查詢最近 2 筆檢查：若兩筆均通過且有進行中事故 → UPDATE resolved_at、duration_mins
+        - alerter.py：透過 smtplib STARTTLS 傳送 send_email()、透過 httpx POST 傳送 send_slack()、透過 plyer 傳送 send_desktop()
+        - 執行冷卻：傳送前比對當前時間與 alert_configs.last_sent_at
+        - 將所有已傳送的告警記錄至 alert_log 資料表，包含通道、目標、訊息預覽、sent_at
+      </tasks>
+    </step>
+
+    <step number="4">
+      <title>Claude AI 事故報告生成器</title>
+      <tasks>
+        - claude_reporter.py：非同步 generate_report(endpoint, incident, db_session)
+        - 取得端點最近 20 筆檢查記錄，格式化為 JSON 陣列（最新在前）
+        - 建立結構化 prompt，要求：失敗摘要、錯誤模式分析、根本原因及可能性百分比、修復步驟
+        - 以 model=claude-sonnet-4-6、max_tokens=1024、timeout=30s 呼叫 Anthropic Python SDK
+        - API 錯誤時最多重試 2 次，採指數退避策略
+        - 透過 DB UPDATE 將報告字串儲存至 incidents.claude_report
+        - 重新分析：清除 claude_report 欄位，重新取得最新檢查記錄，再次呼叫 generate_report
+      </tasks>
+    </step>
+
+    <step number="5">
+      <title>FastAPI 服務</title>
+      <tasks>
+        - api.py：/endpoints 完整 CRUD（列表、建立、讀取、更新、刪除、切換、立即檢查）
+        - YAML 匯入/匯出：以 PyYAML 解析，插入前驗證必填欄位
+        - 事故路由：列表（篩選 open/resolved）、取得詳情、確認、重新分析
+        - SLA 路由：計算可用率時間窗、透過 StringIO 匯出 CSV
+        - 告警設定路由：取得與更新各端點的告警設定
+        - FastAPI lifespan 事件：啟動時開啟 APScheduler，停止時關閉
+        - 以 uvicorn 在 port 8000 執行
+      </tasks>
+    </step>
+
+    <step number="6">
+      <title>SLA 計算模組</title>
+      <tasks>
+        - sla.py：calculate_uptime(endpoint_id, window_hours, db_session) -> float
+        - 查詢 checks，條件：checked_at >= now - window_hours AND endpoint_id = ?
+        - 回傳（COUNT(passed=True) / COUNT(*)）× 100，優雅處理除以零的情況
+        - 偵測 SLA 違規：將結果與 endpoint.sla_target 比較
+        - CSV 匯出：為每個端點生成日期、uptime_24h、uptime_7d、uptime_30d 的資料列
+      </tasks>
+    </step>
+
+    <step number="7">
+      <title>Streamlit 儀表板</title>
+      <tasks>
+        - dashboard.py：透過 st.tabs([All, Dev, Staging, Production]) 建立環境分頁
+        - 摘要指標列：以 st.metric 顯示端點總數 / 正常 / 降級 / 中斷數量
+        - 狀態格狀清單：st.columns(3) 迴圈遍歷端點，以 st.container + CSS 建立色碼卡片
+        - 回應時間圖表：px.line() 加上 add_hline 顯示門檻，st.plotly_chart(use_container_width=True)
+        - 事故記錄：右側 st.column，每筆事故以 st.expander 顯示 Claude 報告
+        - 端點詳情：st.session_state 儲存選定端點，選定後渲染側欄面板
+        - 自動刷新：腳本末尾執行 time.sleep(60) + st.rerun()
+      </tasks>
+    </step>
+
+    <step number="8">
+      <title>細節完善與測試</title>
+      <tasks>
+        - 單元測試：事故偵測邏輯、SLA 計算精確度、告警冷卻執行
+        - 整合測試：模擬 httpx 端點，執行完整檢查週期，驗證資料庫狀態
+        - 種子腳本：插入 5 筆範例端點（通過/失敗混合）供示範與開發使用
+        - README：說明必要環境變數、啟動指令、架構圖
+        - init.sh：安裝依賴套件，以 uvicorn 啟動 FastAPI，在背景啟動 Streamlit
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - 50 個端點以非同步 httpx 並發檢查，不遺漏任何間隔
+      - 事故在 3 次失敗檢查後開啟（最多延遲 3 個檢查間隔）
+      - Claude 報告在事故開啟後 10 秒內生成
+      - Email 與 Slack 告警在事故偵測後 5 秒內發送
+      - SLA 計算與手動計算的誤差在 0.1% 以內
+    </functionality>
+
+    <user_experience>
+      - 儀表板狀態格狀清單每 60 秒刷新，無需整頁重載（透過 st.rerun）
+      - 端點詳情面板在 500 毫秒內開啟（SQLite 本地讀取）
+      - Claude 事故報告以獨立文件形式易讀，無技術術語
+      - 檢查記錄表格分頁顯示 10,000 筆以上資料時不出現效能延遲
+    </user_experience>
+
+    <technical_quality>
+      - 所有資料庫寫入使用 SQLAlchemy session，搭配 try/finally 關閉模式
+      - httpx 檢查均設定明確的 timeout，不會有連線懸掛的情況
+      - APScheduler 工作在 FastAPI 重啟後仍能繼續（啟動時從資料庫重新載入）
+      - Claude API Key 僅從 ANTHROPIC_API_KEY 環境變數載入
+      - 單元測試涵蓋：事故偵測（3 次失敗開啟、2 次通過關閉）、SLA 公式、冷卻邏輯
+    </technical_quality>
+  </success_criteria>
+</project_specification>

@@ -547,6 +547,40 @@ async def export_sla_history(endpoint_id: int, db: Session = Depends(get_db_sess
         db.close()
 
 
+# ===== SUMMARY =====
+
+@app.get("/api/v1/summary")
+async def get_summary(db: Session = Depends(get_db_session)):
+    """取得 Dashboard 統計摘要。
+
+    回傳所有受監控 endpoint 的總數、目前進行中的 incident 數量，
+    以及所有 endpoint 過去 24 小時的平均 uptime 百分比。
+    avg_uptime 無資料時預設為 100.0，有 endpoint 時取各 endpoint 的平均值。
+    """
+    try:
+        endpoints = db.query(Endpoint).all()
+        total_endpoints = len(endpoints)
+
+        active_incidents = db.query(Incident).filter(
+            Incident.resolved_at == None  # noqa: E711 — SQLAlchemy 需用 == None 而非 is None
+        ).count()
+
+        # 計算所有 endpoint 過去 24 小時的平均 uptime
+        if endpoints:
+            uptime_values = [calculate_uptime(e.id, 24, db) for e in endpoints]
+            avg_uptime = round(sum(uptime_values) / len(uptime_values), 2)
+        else:
+            avg_uptime = 100.0
+
+        return {
+            "total_endpoints": total_endpoints,
+            "active_incidents": active_incidents,
+            "avg_uptime": avg_uptime
+        }
+    finally:
+        db.close()
+
+
 # ===== ALERTS =====
 
 @app.get("/alert-configs/{endpoint_id}")
