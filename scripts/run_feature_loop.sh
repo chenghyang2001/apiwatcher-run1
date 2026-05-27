@@ -50,7 +50,7 @@ done
 MAX_ITER="${MAX_ITER:-10}"          # coding 迴圈最大迭代數
 STALL_LIMIT="${STALL_LIMIT:-3}"     # 連續無進度圈數上限（止血）
 SLEEP_INTERVAL="${SLEEP_INTERVAL:-5}" # 兩 session 之間的間隔秒數
-MODEL="${MODEL:-claude-sonnet-4-5-20250929}"
+MODEL="${MODEL:-claude-sonnet-4-6}" # 最新 Sonnet 4.6（2026-05 正確 ID）
 
 echo "=== apiwatcher-run1 Feature Loop 啟動 ==="
 echo "  Branch:        $BRANCH"
