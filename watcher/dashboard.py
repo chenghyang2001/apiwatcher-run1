@@ -95,7 +95,7 @@ def get_endpoint_status(endpoint, latest_check, open_incident):
     return "up"
 
 
-def render_status_card(endpoint, latest_check, uptime_24h, open_incident):
+def render_status_card(endpoint, latest_check, uptime_24h, open_incident, key_prefix=""):
     """Render a color-coded status card for an endpoint."""
     status = get_endpoint_status(endpoint, latest_check, open_incident)
 
@@ -124,7 +124,7 @@ def render_status_card(endpoint, latest_check, uptime_24h, open_incident):
     st.markdown(card_html, unsafe_allow_html=True)
 
     # Add button to view details
-    if st.button(f"View Details", key=f"details_{endpoint.id}"):
+    if st.button(f"View Details", key=f"details_{key_prefix}{endpoint.id}"):
         st.session_state['selected_endpoint_id'] = endpoint.id
 
 
@@ -372,7 +372,7 @@ def main():
                             )
 
                             uptime_24h = calculate_uptime(endpoint.id, 24, db)
-                            render_status_card(endpoint, latest_check, uptime_24h, open_incident)
+                            render_status_card(endpoint, latest_check, uptime_24h, open_incident, key_prefix=f"{env_name}_")
                 else:
                     st.info(f"No endpoints in {env_name} environment")
 
