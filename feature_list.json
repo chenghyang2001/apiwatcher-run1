@@ -480,5 +480,22 @@
       "Step 5: Verify APScheduler adds job and checks start executing"
     ],
     "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Export incident report as PDF via GET /incidents/:id/export/pdf",
+    "steps": [
+      "Step 1: Create endpoint and trigger 3 failures to open an incident",
+      "Step 2: Wait up to 15 seconds for Claude AI report to be generated (incidents.claude_report populated)",
+      "Step 3: Use puppeteer_evaluate to make fetch() GET to /incidents/:id/export/pdf",
+      "Step 4: Verify response status is 200 OK",
+      "Step 5: Verify response Content-Type header is application/pdf",
+      "Step 6: Verify response Content-Disposition header contains filename ending in .pdf",
+      "Step 7: Verify response body byte length is greater than 1024 (valid PDF has content)",
+      "Step 8: Verify the PDF bytes start with %PDF- (valid PDF magic bytes, check via base64 decode first 5 chars)",
+      "Step 9: Verify PDF contains incident metadata: endpoint name, started_at, severity, failure_count",
+      "Step 10: Verify PDF contains Claude AI report text if claude_report field is populated"
+    ],
+    "passes": true
   }
 ]

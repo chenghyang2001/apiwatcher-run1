@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from typing import List, Optional
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends, Body
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,7 @@ from .checker import run_check
 from .sla import calculate_uptime, export_sla_csv
 from .claude_reporter import reanalyze_incident
 from .models import Check as CheckModel
+from .pdf_export import generate_incident_pdf
 
 
 # Pydantic schemas for request/response
@@ -479,6 +480,38 @@ async def reanalyze_incident_endpoint(incident_id: int, db: Session = Depends(ge
             raise HTTPException(status_code=404, detail="Incident not found or reanalysis failed")
 
         return {"message": "Incident reanalyzed successfully"}
+    finally:
+        db.close()
+
+
+@app.get("/incidents/{incident_id}/export/pdf")
+async def export_incident_pdf(incident_id: int, db: Session = Depends(get_db_session)):
+    """Export incident report as PDF."""
+    try:
+        # Verify incident exists
+        incident = db.query(Incident).filter(Incident.id == incident_id).first()
+        if not incident:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        # Get endpoint for filename
+        endpoint = db.query(Endpoint).filter(Endpoint.id == incident.endpoint_id).first()
+        endpoint_name = endpoint.name.replace(" ", "_").replace("/", "_") if endpoint else "unknown"
+
+        # Generate PDF
+        pdf_bytes = generate_incident_pdf(incident_id, db)
+
+        # Return PDF response
+        filename = f"incident_{incident_id}_{endpoint_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     finally:
         db.close()
 
