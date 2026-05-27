@@ -9,9 +9,9 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from sqlalchemy import and_
 
-from .db import get_db
-from .models import Endpoint, Check, Incident
-from .sla import calculate_uptime
+from watcher.db import get_db
+from watcher.models import Endpoint, Check, Incident
+from watcher.sla import calculate_uptime
 
 
 # Page configuration
