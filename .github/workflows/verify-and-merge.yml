@@ -1,7 +1,7 @@
-name: "✅ Verify Feature + Auto-merge PR"
+name: "Verify Feature + Auto-merge PR"
 
-# 觸發：由 VPS 的 run_feature_loop.sh 完成後透過 repository_dispatch 通知
-# 需要 GH_PAT（有 repo scope）才能觸發此事件，GITHUB_TOKEN 不夠
+# Triggered by VPS run_feature_loop.sh via repository_dispatch
+# Requires GH_PAT with repo scope to trigger this event
 on:
   repository_dispatch:
     types: [vps-coding-complete]
@@ -16,9 +16,6 @@ jobs:
       issues: write
 
     steps:
-      # ─────────────────────────────────────────────────────────────────────
-      # Step 1: 解析 dispatch payload
-      # ─────────────────────────────────────────────────────────────────────
       - name: Extract dispatch payload
         id: payload
         run: |
@@ -28,26 +25,14 @@ jobs:
           FIDX="${{ github.event.client_payload.feature_index }}"
           REMAINING="${{ github.event.client_payload.remaining }}"
           EXIT_CODE="${{ github.event.client_payload.exit_code }}"
-
-          echo "branch=${BRANCH}"   >> "$GITHUB_OUTPUT"
-          echo "issue=${ISSUE}"     >> "$GITHUB_OUTPUT"
-          echo "pr=${PR}"           >> "$GITHUB_OUTPUT"
-          echo "fidx=${FIDX}"       >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}"       >> "$GITHUB_OUTPUT"
+          echo "issue=${ISSUE}"         >> "$GITHUB_OUTPUT"
+          echo "pr=${PR}"               >> "$GITHUB_OUTPUT"
+          echo "fidx=${FIDX}"           >> "$GITHUB_OUTPUT"
           echo "remaining=${REMAINING}" >> "$GITHUB_OUTPUT"
           echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
+          echo "Dispatch: branch=${BRANCH} issue=#${ISSUE} pr=#${PR} fidx=${FIDX}"
 
-          echo "📦 Dispatch payload:"
-          echo "   branch:        $BRANCH"
-          echo "   issue:         #$ISSUE"
-          echo "   pr:            #$PR"
-          echo "   feature_index: $FIDX"
-          echo "   remaining:     $REMAINING"
-          echo "   exit_code:     $EXIT_CODE"
-
-      # ─────────────────────────────────────────────────────────────────────
-      # Step 2: SSH 到 VPS 驗證 feature_list.json 中的新 feature 是否通過
-      #   - ADR-2: VPS 直接驗證，不在 Actions runner 重跑測試
-      # ─────────────────────────────────────────────────────────────────────
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
@@ -59,139 +44,53 @@ jobs:
         id: verify
         run: |
           FIDX="${{ steps.payload.outputs.fidx }}"
+          FL_PATH="/home/claude/workspace/anthropic-quickstarts/autonomous-coding-linux/generations/apiwatcher_run1/feature_list.json"
 
-          RESULT=$(ssh -i ~/.ssh/vps_key \
-                       -o StrictHostKeyChecking=no \
-                       -o ConnectTimeout=15 \
+          # Use Python one-liner — heredoc content at column 0 breaks YAML block scalar
+          PY="import json; d=json.load(open('${FL_PATH}',encoding='utf-8')); s='${FIDX}'.strip(); idx=int(s) if s.isdigit() else -1; e=d[idx] if 0<=idx<len(d) else None; p=bool(e.get('passes',False)) if e else all(x.get('passes',False) for x in d); print('PASSES=true' if p else 'PASSES=false'); desc=e.get('description','unknown')[:80] if e else str(sum(1 for x in d if x.get('passes',False)))+'/'+str(len(d))+' features pass'; print('DESC='+str(desc))"
+
+          RESULT=$(ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
                        "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-              "python3 - <<'PYEOF'
-import json, sys
+                       "python3 -c \"$PY\"")
 
-FL_PATH = '/home/claude/workspace/anthropic-quickstarts/autonomous-coding-linux/generations/apiwatcher_run1/feature_list.json'
-try:
-    fl = json.load(open(FL_PATH, encoding='utf-8'))
-except Exception as e:
-    print(f'PASSES=false')
-    print(f'DESC=Cannot read feature_list.json: {e}')
-    sys.exit(0)
-
-idx = ${FIDX}
-if idx is None or str(idx) == 'null' or idx < 0 or idx >= len(fl):
-    # feature_index が無效：すべての entries で passes=true かどうかをチェック
-    all_pass = all(f.get('passes', False) for f in fl)
-    print('PASSES=true' if all_pass else 'PASSES=false')
-    total = len(fl)
-    passed = sum(1 for f in fl if f.get('passes', False))
-    print(f'DESC={passed}/{total} features pass (no specific index)')
-else:
-    entry = fl[idx]
-    passed = entry.get('passes', False)
-    print('PASSES=true' if passed else 'PASSES=false')
-    desc = entry.get('description', '')[:80]
-    print(f'DESC={desc}')
-PYEOF
-")
-
-          echo "--- VPS feature check result ---"
-          echo "$RESULT"
-
+          echo "VPS check: ${RESULT}"
           PASSES=$(echo "$RESULT" | grep '^PASSES=' | cut -d= -f2 | tr -d '[:space:]')
           DESC=$(echo "$RESULT" | grep '^DESC=' | cut -d= -f2-)
-
           echo "passes=${PASSES}" >> "$GITHUB_OUTPUT"
           echo "desc=${DESC}"     >> "$GITHUB_OUTPUT"
 
-      # ─────────────────────────────────────────────────────────────────────
-      # Step 3: 驗證 app health（HTTP /health 端點）
-      # ─────────────────────────────────────────────────────────────────────
       - name: Check app health on VPS
         id: health
         run: |
-          HTTP_CODE=$(ssh -i ~/.ssh/vps_key \
-                          -o StrictHostKeyChecking=no \
-                          -o ConnectTimeout=15 \
-                          "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-                          "curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/health" 2>/dev/null || echo "000")
-
-          echo "App health: HTTP $HTTP_CODE"
+          HTTP_CODE=$(ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+                         "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+                         "curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/health" \
+                         2>/dev/null || echo "000")
+          echo "App health: HTTP ${HTTP_CODE}"
           echo "status_code=${HTTP_CODE}" >> "$GITHUB_OUTPUT"
-
           if [ "$HTTP_CODE" = "200" ]; then
             echo "healthy=true" >> "$GITHUB_OUTPUT"
           else
             echo "healthy=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # ─────────────────────────────────────────────────────────────────────
-      # Step 4a: 驗證通過 → merge PR + 關閉 Issue
-      # ─────────────────────────────────────────────────────────────────────
-      - name: "✅ Merge PR and close Issue (verified)"
+      - name: Merge PR and close Issue
         if: steps.verify.outputs.passes == 'true' && steps.health.outputs.healthy == 'true'
         run: |
           PR_NUM="${{ steps.payload.outputs.pr }}"
           ISSUE_NUM="${{ steps.payload.outputs.issue }}"
-
-          echo "All checks pass — merging PR #${PR_NUM} and closing issue #${ISSUE_NUM}"
-
-          gh pr merge "${PR_NUM}" \
-            --squash \
-            --delete-branch \
-            --subject "feat: Issue #${ISSUE_NUM} - ${{ steps.verify.outputs.desc }}" \
-            --body "Automatically squash-merged by verify-and-merge workflow.
-          All feature verification steps passed ✅ and app health is OK ✅"
-
+          gh pr merge "${PR_NUM}" --squash --delete-branch \
+            --subject "feat: Issue #${ISSUE_NUM} - ${{ steps.verify.outputs.desc }}"
           gh issue close "${ISSUE_NUM}" \
-            --comment "## ✅ Feature Successfully Implemented!
-
-          | Check | Result |
-          |-------|--------|
-          | Feature verification | ✅ PASS |
-          | App health (HTTP /health) | ✅ HTTP ${{ steps.health.outputs.status_code }} |
-          | PR | ✅ #${PR_NUM} squash-merged |
-
-          **Feature:** ${{ steps.verify.outputs.desc }}
-
-          The feature has been autonomously implemented, verified, and merged 🎉"
+            --comment "Feature implemented and verified. PR #${PR_NUM} squash-merged. Health: HTTP ${{ steps.health.outputs.status_code }}. Feature: ${{ steps.verify.outputs.desc }}"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
 
-      # ─────────────────────────────────────────────────────────────────────
-      # Step 4b: 驗證失敗 → 在 PR 留言（不 merge）
-      # ─────────────────────────────────────────────────────────────────────
-      - name: "❌ Comment failure on PR (not merged)"
+      - name: Comment failure on PR
         if: steps.verify.outputs.passes != 'true' || steps.health.outputs.healthy != 'true'
         run: |
           PR_NUM="${{ steps.payload.outputs.pr }}"
-          ISSUE_NUM="${{ steps.payload.outputs.issue }}"
-          LOOP_EXIT="${{ steps.payload.outputs.exit_code }}"
-
           gh pr comment "${PR_NUM}" \
-            --body "## ❌ Verification Failed — PR Not Merged
-
-          | Check | Result |
-          |-------|--------|
-          | Feature passes | ${{ steps.verify.outputs.passes }} |
-          | App health | HTTP ${{ steps.health.outputs.status_code }} |
-          | Remaining features | ${{ steps.payload.outputs.remaining }} |
-          | Loop exit code | ${LOOP_EXIT} |
-
-          **Feature:** ${{ steps.verify.outputs.desc }}
-
-          ### How to debug
-          \`\`\`bash
-          # VPS log
-          ssh vps 'cat /tmp/loop-${ISSUE_NUM}.log'
-
-          # Manually re-run loop
-          ssh vps '
-          cd /home/claude/workspace/anthropic-quickstarts/autonomous-coding-linux/generations/apiwatcher_run1
-          nohup bash scripts/run_feature_loop.sh \\
-            ${{ steps.payload.outputs.branch }} \\
-            ${ISSUE_NUM} \\
-            ${PR_NUM} \\
-            ${{ steps.payload.outputs.fidx }} \\
-            > /tmp/loop-${ISSUE_NUM}-retry.log 2>&1 &
-          '
-          \`\`\`"
+            --body "Verification failed. passes=${{ steps.verify.outputs.passes }} health=HTTP ${{ steps.health.outputs.status_code }} remaining=${{ steps.payload.outputs.remaining }} exit=${{ steps.payload.outputs.exit_code }}"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
