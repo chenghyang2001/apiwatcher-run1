@@ -1,0 +1,52 @@
+name: Feature Request
+description: Request a new feature for autonomous implementation via CI/CD pipeline
+title: "[Feature] "
+labels:
+  - feature-request
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: What type of feature is this?
+      options:
+        - functional
+        - style
+        - performance
+        - security
+    validations:
+      required: true
+
+  - type: input
+    id: description
+    attributes:
+      label: Description
+      description: One-line summary of the feature (used as the feature_list.json description)
+      placeholder: "e.g. Add rate limiting to all API endpoints"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Verification Steps
+      description: |
+        List the steps the autonomous agent will use to verify this feature.
+        Each line must follow the format: "Step N: description"
+      placeholder: |
+        Step 1: Start the API service
+        Step 2: Send a request exceeding the rate limit
+        Step 3: Verify response status is 429
+        Step 4: Verify retry-after header is present
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        **What happens next:**
+        1. This issue is automatically converted to `feature_list.json` entry #42
+        2. A PR is created on branch `feature/issue-{N}`
+        3. The VPS autonomously codes and tests the feature (session-by-session)
+        4. When all verification steps pass, the PR is merged and this issue is closed ✅
