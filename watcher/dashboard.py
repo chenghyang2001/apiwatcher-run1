@@ -260,10 +260,9 @@ def render_endpoint_detail_sidebar(endpoint_id, db):
     uptime_7d = calculate_uptime(endpoint_id, 168, db)
     uptime_30d = calculate_uptime(endpoint_id, 720, db)
 
-    col1, col2, col3 = st.sidebar.columns(3)
-    col1.metric("24h Uptime", f"{uptime_24h:.2f}%")
-    col2.metric("7d Uptime", f"{uptime_7d:.2f}%")
-    col3.metric("30d Uptime", f"{uptime_30d:.2f}%")
+    st.sidebar.write(f"**24h Uptime:** {uptime_24h:.2f}%")
+    st.sidebar.write(f"**7d Uptime:** {uptime_7d:.2f}%")
+    st.sidebar.write(f"**30d Uptime:** {uptime_30d:.2f}%")
 
     # Check History
     st.sidebar.subheader("Recent Checks")

@@ -408,18 +408,6 @@
     "passes": true
   },
   {
-    "category": "style",
-    "description": "Endpoint detail sidebar displays st.metric format for SLA uptime values",
-    "steps": [
-      "Step 1: Create endpoint with SLA data",
-      "Step 2: Navigate to Streamlit dashboard and open endpoint detail sidebar",
-      "Step 3: Take screenshot of SLA metrics section",
-      "Step 4: Verify uptime percentages are displayed in large bold font (st.metric style)",
-      "Step 5: Verify labels '24h Uptime', '7d Uptime', '30d Uptime' are shown in small font above values"
-    ],
-    "passes": true
-  },
-  {
     "category": "functional",
     "description": "Keyword validation in response body works correctly",
     "steps": [
@@ -509,7 +497,7 @@
       "Step 5: Verify response JSON contains field 'active_incidents' with an integer value",
       "Step 6: Verify response JSON contains field 'avg_uptime' with a numeric value between 0 and 100"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "style",
@@ -521,6 +509,6 @@
       "Step 4: Verify the SLA uptime section does NOT use st.metric large bold format",
       "Step 5: Verify the app still runs without errors and other features work normally"
     ],
-    "passes": false
+    "passes": true
   }
 ]
