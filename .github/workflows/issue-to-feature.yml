@@ -1,0 +1,160 @@
+name: "🚀 Issue → Feature PR + VPS Trigger"
+
+# 觸發：Issue 被加上 feature-request 標籤（Issue Forms 建立時自動套用）
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  create-feature:
+    name: Create PR and trigger autonomous coding
+    # 僅處理 feature-request 標籤事件
+    if: github.event.label.name == 'feature-request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 1: Checkout repo (main branch)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 2: Parse issue body → update feature_list.json
+      #   - 讀取 GITHUB_EVENT_PATH 中的 issue body
+      #   - 解析結構化 Issue Form 欄位（Category / Description / Steps）
+      #   - 追加新 entry（passes: false）到 feature_list.json
+      #   - 輸出 NEW_INDEX 和 FEATURE_DESC 到 GITHUB_OUTPUT
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Parse issue → update feature_list.json
+        id: parse
+        run: python3 scripts/parse_issue.py
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 3: 建立 feature branch 並推送（含更新後的 feature_list.json）
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Create feature branch and push
+        id: branch
+        run: |
+          BRANCH="feature/issue-${{ github.event.issue.number }}"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+          git config user.email "ci-autonomous@apiwatcher"
+          git config user.name "Autonomous CI"
+          git checkout -b "$BRANCH"
+          git add feature_list.json
+          git commit -m "ci: add feature #${{ steps.parse.outputs.NEW_INDEX }} from issue #${{ github.event.issue.number }}"
+          git push origin "$BRANCH"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 4: 建立 Pull Request
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Create Pull Request
+        id: create-pr
+        run: |
+          # FEATURE_DESC 可能含有特殊字元，先截斷到安全長度
+          SAFE_DESC=$(echo "${{ steps.parse.outputs.FEATURE_DESC }}" | head -c 80)
+
+          PR_URL=$(gh pr create \
+            --title "feat: Issue #${{ github.event.issue.number }} - ${SAFE_DESC}" \
+            --body "## 🤖 Automated Feature Implementation
+
+          Closes #${{ github.event.issue.number }}
+
+          | Field | Value |
+          |-------|-------|
+          | Feature Index | \`${{ steps.parse.outputs.NEW_INDEX }}\` |
+          | Description | ${SAFE_DESC} |
+          | Branch | \`${{ steps.branch.outputs.branch }}\` |
+
+          This PR is automatically managed by the CI/CD pipeline.
+          **Do not merge manually** — it will be auto-merged once the VPS verifies all steps pass." \
+            --base main \
+            --head "${{ steps.branch.outputs.branch }}")
+
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 5: Issue にコメントを追加
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Comment on issue
+        run: |
+          gh issue comment ${{ github.event.issue.number }} \
+            --body "## 🤖 Autonomous CI/CD Triggered!
+
+          | Field | Value |
+          |-------|-------|
+          | Feature Index | \`#${{ steps.parse.outputs.NEW_INDEX }}\` |
+          | PR | #${{ steps.create-pr.outputs.pr_number }} |
+          | Branch | \`${{ steps.branch.outputs.branch }}\` |
+          | Status | 🔨 VPS is implementing autonomously... |
+
+          **Next:** VPS will run \`claude\` coding sessions until all verification steps pass.
+          This issue will be automatically closed when the PR is verified and merged ✅"
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 6: SSH 觸發 VPS 自主編碼（非同步：nohup & 後立即退出）
+      #   - ADR-1: 非同步觸發，避免 GitHub Actions 6 小時 timeout 殺掉 coding loop
+      #   - VPS 完成後自行透過 repository_dispatch 通知 Workflow 2 (verify-and-merge)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Trigger VPS autonomous coding (async)
+        run: |
+          BRANCH="${{ steps.branch.outputs.branch }}"
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          PR_NUM="${{ steps.create-pr.outputs.pr_number }}"
+          FEATURE_IDX="${{ steps.parse.outputs.NEW_INDEX }}"
+
+          ssh -i ~/.ssh/vps_key \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=15 \
+              "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+              "
+              set -e
+              cd /home/claude/workspace/anthropic-quickstarts/autonomous-coding-linux/generations/apiwatcher_run1
+
+              # Checkout feature branch（含新 feature_list.json 和 run_feature_loop.sh）
+              git fetch origin
+              git checkout ${BRANCH} 2>/dev/null || git checkout -b ${BRANCH} origin/${BRANCH}
+              git pull origin ${BRANCH} || true
+
+              # 設定環境並背景執行 loop（nohup + & 讓 SSH session 結束後繼續跑）
+              export ANTHROPIC_API_KEY='${{ secrets.ANTHROPIC_API_KEY }}'
+              export GH_PAT='${{ secrets.GH_PAT }}'
+              nohup bash scripts/run_feature_loop.sh \
+                  ${BRANCH} ${ISSUE_NUM} ${PR_NUM} ${FEATURE_IDX} \
+                  > /tmp/loop-${ISSUE_NUM}.log 2>&1 &
+
+              echo \"✅ Loop started in background (PID: \$!)\"
+              echo \"   Monitor: tail -f /tmp/loop-${ISSUE_NUM}.log\"
+              "
+
+          echo "✅ VPS trigger sent successfully"
+          echo "   Issue: #${ISSUE_NUM} | PR: #${PR_NUM} | Feature: #${FEATURE_IDX}"
+          echo "   To monitor: ssh vps 'tail -f /tmp/loop-${ISSUE_NUM}.log'"
