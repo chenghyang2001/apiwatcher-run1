@@ -19,12 +19,39 @@ jobs:
     steps:
       # ─────────────────────────────────────────────────────────────────────
       # Step 1: Checkout repo (main branch)
+      # 使用 GH_PAT（若已設定）讓後續 git push 能成功；
+      # 未設定時 fallback 到 github.token（checkout 可讀但 push 會失敗 → 明確報錯）
       # ─────────────────────────────────────────────────────────────────────
       - name: Checkout main
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GH_PAT || github.token }}
           fetch-depth: 0
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 1.5: 驗證必要 Secrets 存在（提早報錯，給使用者清楚提示）
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          [ -z "$GH_PAT"              ] && MISSING="$MISSING GH_PAT"
+          [ -z "$VPS_SSH_PRIVATE_KEY" ] && MISSING="$MISSING VPS_SSH_PRIVATE_KEY"
+          [ -z "$VPS_HOST"            ] && MISSING="$MISSING VPS_HOST"
+          [ -z "$VPS_USER"            ] && MISSING="$MISSING VPS_USER"
+          [ -z "$ANTHROPIC_API_KEY"   ] && MISSING="$MISSING ANTHROPIC_API_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "❌ 缺少以下 GitHub Secrets：$MISSING"
+            echo "   請前往 Settings → Secrets and variables → Actions 設定"
+            echo "   詳細說明：https://github.com/chenghyang2001/apiwatcher-run1/blob/main/README.md"
+            exit 1
+          fi
+          echo "✅ 所有必要 Secrets 已設定"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       # ─────────────────────────────────────────────────────────────────────
       # Step 2: Parse issue body → update feature_list.json
