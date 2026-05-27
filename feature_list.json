@@ -510,5 +510,17 @@
       "Step 6: Verify response JSON contains field 'avg_uptime' with a numeric value between 0 and 100"
     ],
     "passes": false
+  },
+  {
+    "category": "style",
+    "description": "Remove st.metric SLA display from endpoint detail sidebar: delete the style feature entry from feature_list.json and remove corresponding st.metric code from dashboard.py",
+    "steps": [
+      "Step 1: Open feature_list.json and verify it no longer contains an entry about 'Endpoint detail sidebar displays st.metric format for SLA uptime values'",
+      "Step 2: Start Streamlit dashboard at http://localhost:8501",
+      "Step 3: Click any endpoint card to open the detail sidebar",
+      "Step 4: Verify the SLA uptime section does NOT use st.metric large bold format",
+      "Step 5: Verify the app still runs without errors and other features work normally"
+    ],
+    "passes": false
   }
 ]
