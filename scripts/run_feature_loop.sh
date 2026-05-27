@@ -9,11 +9,13 @@ set -euo pipefail
 # 用法：bash scripts/run_feature_loop.sh BRANCH ISSUE_NUM PR_NUM [FEATURE_INDEX]
 #
 # 必要環境變數（在 ~/.vps-secrets 設定，或由 caller 傳入）：
-#   ANTHROPIC_API_KEY  — Claude API key
-#   GH_PAT             — GitHub Personal Access Token（repo scope）
+#   GH_PAT  — GitHub Personal Access Token（repo scope，用於 repository_dispatch）
+#
+# 注意：ANTHROPIC_API_KEY 不需要設定。
+#   VPS 上的 claude CLI 使用 OAuth（~/.claude/.credentials.json）。
+#   若設定 ANTHROPIC_API_KEY 會覆蓋 OAuth，改走 API Credits 計費。
 #
 # ~/.vps-secrets 範本：
-#   export ANTHROPIC_API_KEY="sk-ant-..."
 #   export GH_PAT="ghp_..."
 # ==============================================================================
 
@@ -36,8 +38,8 @@ if [ -f "$SECRETS_FILE" ]; then
   source "$SECRETS_FILE"
 fi
 
-# 環境變數必要性檢查
-for var in ANTHROPIC_API_KEY GH_PAT; do
+# 環境變數必要性檢查（只需要 GH_PAT，不需要 ANTHROPIC_API_KEY）
+for var in GH_PAT; do
   val="${!var:-}"
   if [ -z "$val" ]; then
     echo "錯誤：缺少環境變數 ${var}。" >&2
@@ -50,7 +52,7 @@ done
 MAX_ITER="${MAX_ITER:-10}"          # coding 迴圈最大迭代數
 STALL_LIMIT="${STALL_LIMIT:-3}"     # 連續無進度圈數上限（止血）
 SLEEP_INTERVAL="${SLEEP_INTERVAL:-5}" # 兩 session 之間的間隔秒數
-MODEL="${MODEL:-claude-sonnet-4-6}" # 最新 Sonnet 4.6（2026-05 正確 ID）
+MODEL="${MODEL:-claude-sonnet-4-6}" # 最新 Sonnet 4.6（使用 VPS OAuth，不計 API Credits）
 
 echo "=== apiwatcher-run1 Feature Loop 啟動 ==="
 echo "  Branch:        $BRANCH"
@@ -59,6 +61,7 @@ echo "  PR:            #$PR_NUM"
 echo "  Feature Index: $FEATURE_INDEX"
 echo "  Model:         $MODEL"
 echo "  Max Iter:      $MAX_ITER"
+echo "  Auth:          OAuth（Max 訂閱，免費）"
 echo "  Start Time:    $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 echo "============================================"
 
@@ -146,7 +149,10 @@ for i in $(seq 1 "$MAX_ITER"); do
   echo "--- Session $((i+1)): coding（第 $i/$MAX_ITER 圈，剩餘 $remaining，$(date -u '+%H:%M:%SZ')）---"
 
   TMPOUT=$(mktemp /tmp/loop_${ISSUE_NUM}_XXXX.jsonl)
-  DISABLE_WRITER_QA_HOOK=1 claude -p "Continue. Execute your coding task now." \
+  # 明確 unset ANTHROPIC_API_KEY 確保走 OAuth（不走 API Credits）
+  DISABLE_WRITER_QA_HOOK=1 \
+  ANTHROPIC_API_KEY="" \
+  claude -p "Continue. Execute your coding task now." \
     --system-prompt-file "$CODING_PROMPT" \
     --model "$MODEL" \
     --permission-mode bypassPermissions \
