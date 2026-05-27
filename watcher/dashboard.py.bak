@@ -2,9 +2,6 @@
 Streamlit dashboard UI for APIWatcher.
 """
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))  # 確保 watcher 套件可被找到，不論 cwd 在哪
 import time
 import streamlit as st
 import plotly.express as px
@@ -12,9 +9,9 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from sqlalchemy import and_
 
-from watcher.db import get_db
-from watcher.models import Endpoint, Check, Incident
-from watcher.sla import calculate_uptime
+from .db import get_db
+from .models import Endpoint, Check, Incident
+from .sla import calculate_uptime
 
 
 # Page configuration
@@ -95,7 +92,7 @@ def get_endpoint_status(endpoint, latest_check, open_incident):
     return "up"
 
 
-def render_status_card(endpoint, latest_check, uptime_24h, open_incident, key_prefix=""):
+def render_status_card(endpoint, latest_check, uptime_24h, open_incident):
     """Render a color-coded status card for an endpoint."""
     status = get_endpoint_status(endpoint, latest_check, open_incident)
 
@@ -124,7 +121,7 @@ def render_status_card(endpoint, latest_check, uptime_24h, open_incident, key_pr
     st.markdown(card_html, unsafe_allow_html=True)
 
     # Add button to view details
-    if st.button(f"View Details", key=f"details_{key_prefix}{endpoint.id}"):
+    if st.button(f"View Details", key=f"details_{endpoint.id}"):
         st.session_state['selected_endpoint_id'] = endpoint.id
 
 
@@ -260,9 +257,10 @@ def render_endpoint_detail_sidebar(endpoint_id, db):
     uptime_7d = calculate_uptime(endpoint_id, 168, db)
     uptime_30d = calculate_uptime(endpoint_id, 720, db)
 
-    st.sidebar.write(f"**24h Uptime:** {uptime_24h:.2f}%")
-    st.sidebar.write(f"**7d Uptime:** {uptime_7d:.2f}%")
-    st.sidebar.write(f"**30d Uptime:** {uptime_30d:.2f}%")
+    col1, col2, col3 = st.sidebar.columns(3)
+    col1.metric("24h Uptime", f"{uptime_24h:.2f}%")
+    col2.metric("7d Uptime", f"{uptime_7d:.2f}%")
+    col3.metric("30d Uptime", f"{uptime_30d:.2f}%")
 
     # Check History
     st.sidebar.subheader("Recent Checks")
@@ -371,7 +369,7 @@ def main():
                             )
 
                             uptime_24h = calculate_uptime(endpoint.id, 24, db)
-                            render_status_card(endpoint, latest_check, uptime_24h, open_incident, key_prefix=f"{env_name}_")
+                            render_status_card(endpoint, latest_check, uptime_24h, open_incident)
                 else:
                     st.info(f"No endpoints in {env_name} environment")
 

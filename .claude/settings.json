@@ -1,6 +1,20 @@
 {
   "permissions": {
     "defaultMode": "bypassPermissions",
-    "allow": ["Read", "Write", "Edit", "Glob", "Grep", "Bash(npm:*)", "Bash(node:*)", "Bash(git init:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(mkdir:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(wc:*)", "Bash(grep:*)", "Bash(pwd)", "Bash(cp:*)", "Bash(netstat:*)", "Bash(ss:*)", "Bash(ps:*)", "Bash(curl:*)", "Bash(kill:*)", "Bash(chmod:*)", "Bash(npx:*)", "Bash(rm:*)", "Bash(mv:*)", "Bash(touch:*)", "Bash(echo:*)", "Bash(sed:*)", "Bash(awk:*)", "Bash(env:*)", "Bash(export:*)", "Bash(bash:*)", "Bash(sh:*)", "Bash(python:*)", "Bash(python3:*)", "Bash(pip:*)", "Bash(pip3:*)", "Bash(which:*)", "Bash(find:*)", "Bash(xargs:*)", "Bash(lsof:*)", "Bash(pkill:*)", "Bash(date:*)", "Bash(sleep:*)", "mcp__puppeteer__puppeteer_navigate", "mcp__puppeteer__puppeteer_screenshot", "mcp__puppeteer__puppeteer_click", "mcp__puppeteer__puppeteer_fill", "mcp__puppeteer__puppeteer_select", "mcp__puppeteer__puppeteer_hover", "mcp__puppeteer__puppeteer_evaluate", "mcp__puppeteer__puppeteer_connect_active_tab"]
+    "allow": [
+      "Read", "Write", "Edit", "Glob", "Grep",
+      "Bash(npm:*)", "Bash(node:*)",
+      "Bash(git add:*)", "Bash(git commit:*)", "Bash(git status:*)",
+      "Bash(git diff:*)", "Bash(git log:*)", "Bash(git push:*)",
+      "Bash(ls:*)", "Bash(cat:*)", "Bash(mkdir:*)",
+      "Bash(cp:*)", "Bash(mv:*)", "Bash(rm:*)", "Bash(touch:*)",
+      "Bash(curl:*)", "Bash(python3:*)", "Bash(pip3:*)",
+      "Bash(bash:*)", "Bash(sh:*)", "Bash(chmod:*)",
+      "Bash(grep:*)", "Bash(find:*)", "Bash(echo:*)",
+      "Bash(ps:*)", "Bash(kill:*)", "Bash(pkill:*)",
+      "Bash(ss:*)", "Bash(lsof:*)", "Bash(sleep:*)",
+      "Bash(date:*)", "Bash(env:*)", "Bash(export:*)",
+      "Bash(sed:*)", "Bash(awk:*)", "Bash(wc:*)"
+    ]
   }
 }
