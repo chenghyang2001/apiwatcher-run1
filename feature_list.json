@@ -497,5 +497,18 @@
       "Step 10: Verify PDF contains Claude AI report text if claude_report field is populated"
     ],
     "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Add GET /api/v1/summary endpoint returning dashboard statistics: total monitored endpoints, active incidents count, and average uptime percentage across all endpoints",
+    "steps": [
+      "Step 1: Start the FastAPI service and confirm it is running on port 8000",
+      "Step 2: Send GET request to http://localhost:8000/api/v1/summary",
+      "Step 3: Verify response status is 200 OK",
+      "Step 4: Verify response JSON contains field 'total_endpoints' with an integer value",
+      "Step 5: Verify response JSON contains field 'active_incidents' with an integer value",
+      "Step 6: Verify response JSON contains field 'avg_uptime' with a numeric value between 0 and 100"
+    ],
+    "passes": false
   }
 ]
