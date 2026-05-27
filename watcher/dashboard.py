@@ -2,6 +2,9 @@
 Streamlit dashboard UI for APIWatcher.
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))  # 確保 watcher 套件可被找到，不論 cwd 在哪
 import time
 import streamlit as st
 import plotly.express as px
