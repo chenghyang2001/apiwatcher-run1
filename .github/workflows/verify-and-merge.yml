@@ -79,9 +79,11 @@ jobs:
         run: |
           PR_NUM="${{ steps.payload.outputs.pr }}"
           ISSUE_NUM="${{ steps.payload.outputs.issue }}"
-          gh pr merge "${PR_NUM}" --squash --delete-branch \
+          REPO="${{ github.repository }}"
+          # --repo flag required: runner has no git checkout so gh cannot infer the remote
+          gh pr merge "${PR_NUM}" --repo "${REPO}" --squash --delete-branch \
             --subject "feat: Issue #${ISSUE_NUM} - ${{ steps.verify.outputs.desc }}"
-          gh issue close "${ISSUE_NUM}" \
+          gh issue close "${ISSUE_NUM}" --repo "${REPO}" \
             --comment "Feature implemented and verified. PR #${PR_NUM} squash-merged. Health: HTTP ${{ steps.health.outputs.status_code }}. Feature: ${{ steps.verify.outputs.desc }}"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
@@ -90,7 +92,8 @@ jobs:
         if: steps.verify.outputs.passes != 'true' || steps.health.outputs.healthy != 'true'
         run: |
           PR_NUM="${{ steps.payload.outputs.pr }}"
-          gh pr comment "${PR_NUM}" \
+          REPO="${{ github.repository }}"
+          gh pr comment "${PR_NUM}" --repo "${REPO}" \
             --body "Verification failed. passes=${{ steps.verify.outputs.passes }} health=HTTP ${{ steps.health.outputs.status_code }} remaining=${{ steps.payload.outputs.remaining }} exit=${{ steps.payload.outputs.exit_code }}"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
