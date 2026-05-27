@@ -30,6 +30,7 @@ jobs:
 
       # ─────────────────────────────────────────────────────────────────────
       # Step 1.5: 驗證必要 Secrets 存在（提早報錯，給使用者清楚提示）
+      # 注意：ANTHROPIC_API_KEY 不在此清單 — VPS 使用 OAuth（Max 訂閱，免費）
       # ─────────────────────────────────────────────────────────────────────
       - name: Validate required secrets
         run: |
@@ -38,20 +39,17 @@ jobs:
           [ -z "$VPS_SSH_PRIVATE_KEY" ] && MISSING="$MISSING VPS_SSH_PRIVATE_KEY"
           [ -z "$VPS_HOST"            ] && MISSING="$MISSING VPS_HOST"
           [ -z "$VPS_USER"            ] && MISSING="$MISSING VPS_USER"
-          [ -z "$ANTHROPIC_API_KEY"   ] && MISSING="$MISSING ANTHROPIC_API_KEY"
           if [ -n "$MISSING" ]; then
             echo "❌ 缺少以下 GitHub Secrets：$MISSING"
             echo "   請前往 Settings → Secrets and variables → Actions 設定"
-            echo "   詳細說明：https://github.com/chenghyang2001/apiwatcher-run1/blob/main/README.md"
             exit 1
           fi
-          echo "✅ 所有必要 Secrets 已設定"
+          echo "✅ 所有必要 Secrets 已設定（4/4）"
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       # ─────────────────────────────────────────────────────────────────────
       # Step 2: Parse issue body → update feature_list.json
@@ -120,7 +118,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
 
       # ─────────────────────────────────────────────────────────────────────
-      # Step 5: Issue にコメントを追加
+      # Step 5: Comment on issue
       # ─────────────────────────────────────────────────────────────────────
       - name: Comment on issue
         run: |
@@ -143,6 +141,7 @@ jobs:
       # Step 6: SSH 觸發 VPS 自主編碼（非同步：nohup & 後立即退出）
       #   - ADR-1: 非同步觸發，避免 GitHub Actions 6 小時 timeout 殺掉 coding loop
       #   - VPS 完成後自行透過 repository_dispatch 通知 Workflow 2 (verify-and-merge)
+      #   - 注意：不傳 ANTHROPIC_API_KEY（VPS 使用 OAuth，傳了會覆蓋並計費）
       # ─────────────────────────────────────────────────────────────────────
       - name: Set up SSH
         run: |
@@ -171,9 +170,10 @@ jobs:
               git checkout ${BRANCH} 2>/dev/null || git checkout -b ${BRANCH} origin/${BRANCH}
               git pull origin ${BRANCH} || true
 
-              # 設定環境並背景執行 loop（nohup + & 讓 SSH session 結束後繼續跑）
-              export ANTHROPIC_API_KEY='${{ secrets.ANTHROPIC_API_KEY }}'
+              # 傳入 GH_PAT（供 repository_dispatch 用）
+              # 不傳 ANTHROPIC_API_KEY — VPS 的 claude CLI 使用 OAuth（Max 訂閱）
               export GH_PAT='${{ secrets.GH_PAT }}'
+
               nohup bash scripts/run_feature_loop.sh \
                   ${BRANCH} ${ISSUE_NUM} ${PR_NUM} ${FEATURE_IDX} \
                   > /tmp/loop-${ISSUE_NUM}.log 2>&1 &
@@ -184,4 +184,4 @@ jobs:
 
           echo "✅ VPS trigger sent successfully"
           echo "   Issue: #${ISSUE_NUM} | PR: #${PR_NUM} | Feature: #${FEATURE_IDX}"
-          echo "   To monitor: ssh vps 'tail -f /tmp/loop-${ISSUE_NUM}.log'"
+          echo "   Monitor: ssh vps 'tail -f /tmp/loop-${ISSUE_NUM}.log'"
