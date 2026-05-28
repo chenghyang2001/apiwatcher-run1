@@ -6,10 +6,11 @@ import json
 import yaml
 from contextlib import asynccontextmanager
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel
+from sqlalchemy import func, Integer, cast
 from sqlalchemy.orm import Session
 
 from .db import init_db, get_db_session
